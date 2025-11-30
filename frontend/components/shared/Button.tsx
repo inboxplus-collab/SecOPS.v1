@@ -1,118 +1,46 @@
-"use client";
-
-import React from "react";
+import * as React from "react";
 import clsx from "clsx";
-import { Loader2 } from "lucide-react";
 
-export type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "outline"
-  | "subtle"
-  | "danger";
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 
-export type ButtonSize = "sm" | "md" | "lg";
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
   loading?: boolean;
-  fullWidth?: boolean;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
-  className?: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                 Variants                                    */
-/* -------------------------------------------------------------------------- */
-
-const variantClasses: Record<ButtonVariant, string> = {
+const variantClasses: Record<Variant, string> = {
   primary:
-    "bg-neutral-900 text-white hover:bg-neutral-800 border border-neutral-900",
+    "bg-blue-600 text-white hover:bg-blue-500 disabled:bg-blue-900/40 disabled:text-blue-200",
   secondary:
-    "bg-neutral-100 text-neutral-800 hover:bg-neutral-200 border border-neutral-300",
-  outline:
-    "bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50",
-  subtle:
-    "bg-transparent text-neutral-700 hover:bg-neutral-100 border border-transparent",
+    "bg-neutral-800 text-neutral-50 hover:bg-neutral-700 disabled:bg-neutral-900/40",
+  ghost:
+    "bg-transparent text-neutral-200 hover:bg-neutral-800/60 disabled:text-neutral-500",
   danger:
-    "bg-red-600 text-white hover:bg-red-700 border border-red-700",
+    "bg-red-600 text-white hover:bg-red-500 disabled:bg-red-900/40 disabled:text-red-200",
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                   Sizes                                     */
-/* -------------------------------------------------------------------------- */
-
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: "text-sm px-3 py-1.5 rounded-md",
-  md: "text-sm px-4 py-2 rounded-lg",
-  lg: "text-base px-5 py-3 rounded-xl",
-};
-
-/* -------------------------------------------------------------------------- */
-/*                               Loader Spinner                                */
-/* -------------------------------------------------------------------------- */
-
-const Spinner = () => (
-  <Loader2 className="animate-spin h-4 w-4 text-current" />
-);
-
-/* -------------------------------------------------------------------------- */
-/*                                 Component                                   */
-/* -------------------------------------------------------------------------- */
-
-const Button: React.FC<ButtonProps> = ({
-  children,
+export const Button: React.FC<ButtonProps> = ({
   variant = "primary",
-  size = "md",
   loading = false,
-  disabled,
-  fullWidth = false,
-  leftIcon,
-  rightIcon,
   className,
-  ...props
+  children,
+  ...rest
 }) => {
-  const isDisabled = disabled || loading;
-
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center font-medium transition-all select-none",
+        "inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-neutral-950",
         variantClasses[variant],
-        sizeClasses[size],
-        {
-          "w-full": fullWidth,
-          "opacity-50 cursor-not-allowed": isDisabled,
-        },
+        loading && "cursor-wait opacity-80",
         className
       )}
-      disabled={isDisabled}
-      {...props}
+      disabled={loading || rest.disabled}
+      {...rest}
     >
-      {/* Left icon */}
-      {leftIcon && !loading && (
-        <span className="mr-2 flex items-center">{leftIcon}</span>
+      {loading && (
+        <span className="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
       )}
-
-      {/* Loader */}
-      {loading ? (
-        <span className="flex items-center gap-2">
-          <Spinner />
-          {children && <span>{children}</span>}
-        </span>
-      ) : (
-        children
-      )}
-
-      {/* Right icon */}
-      {rightIcon && !loading && (
-        <span className="ml-2 flex items-center">{rightIcon}</span>
-      )}
+      {children}
     </button>
   );
 };
-
-export default Button;

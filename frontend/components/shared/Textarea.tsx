@@ -1,62 +1,42 @@
-"use client";
-
-import React from "react";
+import * as React from "react";
 import clsx from "clsx";
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
-  error?: string;
-  rows?: number;
-  size?: "sm" | "md" | "lg";
-  className?: string;
+  helperText?: string;
 }
 
-const Textarea: React.FC<TextareaProps> = ({
+export const Textarea: React.FC<TextareaProps> = ({
   label,
-  error,
-  rows = 4,
-  size = "md",
+  helperText,
   className,
-  ...props
+  id,
+  ...rest
 }) => {
-  const sizeClasses = {
-    sm: "text-sm px-2 py-2",
-    md: "text-sm px-3 py-2.5",
-    lg: "text-base px-4 py-3",
-  };
-
+  const inputId = id || rest.name || undefined;
   return (
-    <div className={clsx("flex flex-col gap-1 w-full", className)}>
-      {/* Label */}
+    <div className="flex flex-col gap-1">
       {label && (
-        <label className="text-sm font-medium text-neutral-700">
+        <label
+          htmlFor={inputId}
+          className="text-xs font-medium uppercase tracking-wide text-neutral-300"
+        >
           {label}
         </label>
       )}
-
-      {/* Textarea */}
       <textarea
-        rows={rows}
+        id={inputId}
         className={clsx(
-          "w-full rounded-md border outline-none transition-colors resize-none",
-          "bg-white text-neutral-900 placeholder-neutral-400",
-          sizeClasses[size],
-          error
-            ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-            : "border-neutral-300 focus:border-neutral-900 focus:ring-neutral-200",
-          "focus:ring-2",
-          props.disabled && "opacity-60 cursor-not-allowed"
+          "w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500",
+          className
         )}
-        {...props}
+        rows={rest.rows ?? 4}
+        {...rest}
       />
-
-      {/* Error Message */}
-      {error && (
-        <span className="text-xs text-red-600 mt-0.5">{error}</span>
+      {helperText && (
+        <p className="text-xs text-neutral-500">{helperText}</p>
       )}
     </div>
   );
 };
-
-export default Textarea;
