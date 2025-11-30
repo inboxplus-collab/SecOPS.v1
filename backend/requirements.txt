@@ -1,76 +1,32 @@
-# --------------------
-# FastAPI Core
-# --------------------
-fastapi==0.110.0
+# Core web framework
+fastapi==0.111.0
 uvicorn[standard]==0.30.1
-pydantic==2.6.4
+
+# Pydantic & settings
+pydantic==2.7.1
 pydantic-settings==2.2.1
 
-# --------------------
-# HTTP & Utils
-# --------------------
-httpx==0.27.0
-aiohttp==3.9.5
-python-multipart==0.0.9
-
-# --------------------
-# Auth / Security
-# --------------------
-python-jose==3.3.0
-passlib[bcrypt]==1.7.4
-
-# --------------------
-# Database (Async SQLAlchemy + Postgres)
-# --------------------
+# Database & migrations (async)
 SQLAlchemy==2.0.30
 asyncpg==0.29.0
-alembic==1.13.2
+alembic==1.13.1
 
-# --------------------
-# Cache / KV
-# --------------------
-redis==5.0.4
+# HTTP clients
+httpx==0.27.0
+python-multipart==0.0.9
 
-# --------------------
-# Metrics
-# --------------------
+# Metrics & monitoring
 prometheus-client==0.20.0
 
-# --------------------
-# RAG + Vector Stores
-# --------------------
-qdrant-client==1.9.1
-supabase==2.3.5
-numpy==1.26.4
+# Error tracking
+sentry-sdk[fastapi]==2.5.1
 
-# --------------------
-# LLM Clients (generic)
-# --------------------
-openai==1.35.3
-google-generativeai==0.7.0
-anthropic==0.25.7
-tiktoken==0.7.0
+# Auth / JWT (Supabase)
+python-jose[cryptography]==3.3.0
 
-# --------------------
-# CI / K8s / GitHub / Integrations
-# --------------------
-PyGithub==2.3.0
-kubernetes==30.1.0
-pyyaml==6.0.1
+# Kubernetes integration
+kubernetes==29.0.0
 
-# --------------------
 # Testing
-# --------------------
-pytest==8.2.2
-pytest-asyncio==0.23.6
-httpx==0.27.0
-
-# --------------------
-# Logging / Dev utilities
-# --------------------
-loguru==0.7.2
-colorlog==6.8.2
-
-# --------------------
-# Optional: Rate Limiting (if used later)
-# slowapi==0.1.9
+pytest==8.2.0
+pytest-asyncio==0.23.5
