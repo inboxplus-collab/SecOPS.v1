@@ -14,5 +14,11 @@ Built with:
 - **Cookies-next** for JWT handling
 - **Modular component design system**
 
+## Integration blueprints
+
+- **OpenAI Apps SDK UI**: see `frontend/lib/appsSdkUiIntegration.ts` for data
+  mapping and component expectations so the console can adopt
+  https://github.com/openai/apps-sdk-ui without a hard dependency.
+
 
 

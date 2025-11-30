@@ -10,4 +10,9 @@ This package contains optional, advanced modules for:
 
 These modules are completely optional and are not imported by the core
 backend. You can safely ignore them until you are ready to integrate.
+
+Included integrations:
+- `agent0_adapter`: keeps data structures compatible with the Agent0 project
+  (https://github.com/aiming-lab/Agent0) so you can later introduce their
+  runtime without refactoring business logic.
 """
