@@ -164,3 +164,25 @@ export async function queryRag(
     },
   });
 }
+
+export interface RunAnalysisPayload {
+  repository: string;
+  database_url?: string;
+  code_path?: string;
+}
+
+export type RunAnalysisResponse = Record<string, unknown>;
+
+export async function runAnalysis(
+  payload: RunAnalysisPayload,
+  options?: RequestOptions
+): Promise<RunAnalysisResponse> {
+  return request<RunAnalysisResponse>("/analysis/run", {
+    ...options,
+    init: {
+      method: "POST",
+      body: JSON.stringify(payload),
+      ...(options?.init || {}),
+    },
+  });
+}
