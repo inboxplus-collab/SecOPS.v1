@@ -14,6 +14,7 @@ type TopNavProps = {
 
 const consoleNavItems = [
   { href: "/console", label: "Console" },
+  { href: "/console/analysis", label: "Analysis" },
   { href: "/console/issues", label: "Issues" },
   { href: "/console/checks", label: "Checks" },
   { href: "/console/settings", label: "Settings" },
