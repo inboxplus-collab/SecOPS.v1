@@ -1,54 +1,71 @@
-# backend/src/rag/llm_client.py
+import os
+from typing import Optional
 
 import httpx
-from utils.config import settings
-from utils.errors import LLMError
 
 
 class LLMClient:
-    def __init__(self):
-        self.clients = {}
 
-        if settings.OPENAI_API_KEY:
-            self.clients["openai"] = {
-                "key": settings.OPENAI_API_KEY,
-                "url": "https://api.openai.com/v1/chat/completions"
-            }
+    async def ask(self, prompt: str, model: Optional[str] = None):
+        """
+        Fallback priority:
+        1. OpenAI
+        2. Google Gemini
+        3. Local LM Studio
+        """
 
-        if settings.GROQ_API_KEY:
-            self.clients["groq"] = {
-                "key": settings.GROQ_API_KEY,
-                "url": "https://api.groq.com/openai/v1/chat/completions"
-            }
+        # ========= OpenAI =========
+        try:
+            key = os.getenv("OPENAI_API_KEY")
+            if key:
+                return await self._openai(prompt, model)
+        except Exception:
+            pass
 
-        if settings.MISTRAL_API_KEY:
-            self.clients["mistral"] = {
-                "key": settings.MISTRAL_API_KEY,
-                "url": "https://api.mistral.ai/v1/chat/completions"
-            }
+        # ========= Gemini =========
+        try:
+            key = os.getenv("GEMINI_API_KEY")
+            if key:
+                return await self._gemini(prompt)
+        except Exception:
+            pass
 
-    async def ask(self, prompt: str, model: str = None) -> str:
-        model = model or settings.DEFAULT_MODEL
+        # ========= LM Studio =========
+        return await self._local(prompt)
 
-        for provider, cfg in self.clients.items():
-            try:
-                async with httpx.AsyncClient(timeout=60) as client:
-                    res = await client.post(
-                        cfg["url"],
-                        json={
-                            "model": model,
-                            "messages": [{"role": "user", "content": prompt}],
-                        },
-                        headers={"Authorization": f"Bearer {cfg['key']}"}
-                    )
-                if res.status_code == 200:
-                    data = res.json()
-                    return data["choices"][0]["message"]["content"]
+    async def _openai(self, prompt, model):
+        import openai
 
-            except Exception as e:
-                continue  # try next provider
+        client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-        raise LLMError("All LLM providers failed")
+        resp = await client.chat.completions.create(
+            model=model or "gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return resp.choices[0].message["content"]
+
+    async def _gemini(self, prompt):
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateText"
+        params = {"key": os.getenv("GEMINI_API_KEY")}
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(url, params=params, json={"prompt": {"text": prompt}})
+            data = resp.json()
+            return data["candidates"][0]["output"]
+
+    async def _local(self, prompt):
+        """
+        LM Studio local model endpoint.
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "http://localhost:1234/v1/chat/completions",
+                json={
+                    "model": "local-model",
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+            )
+            return resp.json()["choices"][0]["message"]["content"]
 
 
 llm_client = LLMClient()

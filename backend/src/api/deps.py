@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session
 
 from integrations.supabase_auth import decode_supabase_jwt, SupabaseAuthError
 from db.session import get_db  # this is your migrations/session.py helper
+from rag.AdvancedRAGTypes import RAGQuery
+from rag.CitationProcessor import citation_processor
+from rag.RAGSynthesizer import synthesizer
 from rag.SearchOrchestrator import SearchOrchestrator
 
 logger = logging.getLogger(__name__)
@@ -130,6 +133,7 @@ def get_rag_orchestrator() -> Any:
     class _Wrapper:
         def __init__(self) -> None:
             self.engine = SearchOrchestrator()
+            self.synthesizer = synthesizer
 
         async def run(
             self,
@@ -141,13 +145,14 @@ def get_rag_orchestrator() -> Any:
             top_k: int | None = None,
             metadata: Dict[str, Any] | None = None,
         ) -> Dict[str, Any]:
-            _ = (max_tokens, temperature, top_k)  # unused but kept for API compatibility
-            answer = await self.engine.query(query, metadata=metadata or {})
-            return {
-                "answer": answer.answer if hasattr(answer, "answer") else str(answer),
-                "sources": getattr(answer, "citations", []),
-                "usage": getattr(answer, "usage", None),
-            }
+            _ = (max_tokens, temperature)  # unused but kept for API compatibility
+
+            rag_query = RAGQuery(query=query, top_k=top_k or 8, filters=metadata)
+            chunks = await self.engine.search(rag_query)
+            synthesized_answer = await self.synthesizer.synthesize(rag_query, chunks)
+            citations = citation_processor.format_citations(chunks)
+
+            return {"answer": synthesized_answer, "sources": citations, "usage": None}
 
     return _Wrapper()
 
