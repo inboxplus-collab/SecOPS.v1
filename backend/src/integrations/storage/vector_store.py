@@ -1,46 +1,48 @@
-from __future__ import annotations
+import os
+import httpx
+from typing import List
+from backend.src.rag.AdvancedRAGTypes import RAGChunk
 
-from dataclasses import dataclass
-from typing import List, Tuple, Dict
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-import math
+class VectorStore:
 
+    async def search(self, query: str, top_k: int = 8) -> List[RAGChunk]:
+        """
+        Uses Supabase pgvector RPC function `match_documents`.
+        """
 
-@dataclass
-class VectorDoc:
-    id: str
-    embedding: List[float]
-    metadata: Dict[str, str]
+        url = f"{SUPABASE_URL}/rest/v1/rpc/match_documents"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+        }
 
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(url, headers=headers, json={
+                "query_text": query,
+                "match_count": top_k
+            })
 
-class InMemoryVectorStore:
-    """
-    Basic vector store for RAG.
+            data = resp.json()
 
-    For production you should back this by pgvector in Supabase
-    or a dedicated vector DB. API is intentionally simple: upsert + search.
-    """
-
-    def __init__(self) -> None:
-        self._docs: Dict[str, VectorDoc] = {}
-
-    def upsert(self, doc: VectorDoc) -> None:
-        self._docs[doc.id] = doc
-
-    def _cosine(self, a: List[float], b: List[float]) -> float:
-        if not a or not b or len(a) != len(b):
-            return 0.0
-        dot = sum(x * y for x, y in zip(a, b))
-        na = math.sqrt(sum(x * x for x in a))
-        nb = math.sqrt(sum(x * x for x in b))
-        if na == 0 or nb == 0:
-            return 0.0
-        return dot / (na * nb)
-
-    def search(self, query_embedding: List[float], top_k: int = 5) -> List[Tuple[VectorDoc, float]]:
-        scored = [
-            (doc, self._cosine(query_embedding, doc.embedding))
-            for doc in self._docs.values()
+        chunks = [
+            RAGChunk(
+                id=str(i["id"]),
+                text=i["content"],
+                score=float(i["similarity"]),
+                source=i.get("source", "unknown"),
+                metadata=i.get("metadata", {}),
+            )
+            for i in data
         ]
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return scored[:top_k]
+
+        return chunks
+
+    def keyword_search(self, query: str) -> List[RAGChunk]:
+        # Simple local fallback (optional)
+        return []
+
+
+vector_store = VectorStore()
