@@ -24,6 +24,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 
 # Routers
 from api.routes import analysis, rag, platform, integrations, admin, auth  # type: ignore[attr-defined]
+from utils.config import validate_runtime_config
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -188,6 +189,13 @@ except Exception:  # noqa: BLE001
 @app.on_event("startup")
 async def on_startup() -> None:
     logger.info("SecOpsAI backend starting up")
+
+    config_issues = validate_runtime_config()
+    for issue in config_issues:
+        logger.warning("Runtime configuration issue: %s", issue)
+    if not config_issues:
+        logger.info("Runtime configuration validated")
+
     if callable(start_scheduler):
         try:
             start_scheduler()
