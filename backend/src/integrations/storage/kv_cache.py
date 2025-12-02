@@ -230,8 +230,8 @@ class SupabaseKeyValueCache(KeyValueCache):
                 if time.time() > ts:
                     await self.delete(key)
                     return None
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("SupabaseKeyValueCache expiry parse failed for %s: %s", key, exc)
 
         return row.get("value")
 

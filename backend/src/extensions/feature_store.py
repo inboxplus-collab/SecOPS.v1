@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import logging
+
 
 @dataclass
 class FeatureEvent:
@@ -56,6 +58,7 @@ class FeatureStore:
     """
 
     def __init__(self, path: Optional[Path] = None, max_events: int = 10_000) -> None:
+        self._logger = logging.getLogger(__name__)
         self._path = path
         self._max_events = max_events
         self._events: List[FeatureEvent] = []
@@ -85,9 +88,9 @@ class FeatureStore:
         try:
             with self._path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(event.to_dict()) + "\n")
-        except Exception:
-            # Optional persistence – ignore failures by default.
-            pass
+        except Exception as exc:
+            # Optional persistence – log and continue without crashing the app.
+            self._logger.warning("FeatureStore persistence failed: %s", exc)
 
     @property
     def events(self) -> List[FeatureEvent]:
