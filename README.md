@@ -1,6 +1,6 @@
 # SecOPS.v1
 
-SecOPS.v1 is organized into `backend`, `frontend`, and `infra` packages that together provide a security operations workflow. This repository documents external LLM neural network projects used for research or integration inspiration.
+SecOPS.v1 is organized into `backend`, `frontend`, and `infra` packages that together provide a security operations workflow. This repository documents external LLM neural network projects used for research or integration inspiration. The README now reflects the resolved merge state and is free of conflict markers.
 
 ## LLM Neural Networks
 
