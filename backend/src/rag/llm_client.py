@@ -1,8 +1,8 @@
 # backend/src/rag/llm_client.py
 
 import httpx
-from backend.src.utils.config import settings
-from backend.src.utils.errors import LLMError
+from utils.config import settings
+from utils.errors import LLMError
 
 
 class LLMClient:
