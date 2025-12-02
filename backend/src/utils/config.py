@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Optional
 
@@ -121,3 +122,38 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def validate_runtime_config(cfg: Settings | None = None) -> list[str]:
+    """
+    Validate critical runtime configuration and return human-friendly warnings.
+
+    The goal is to surface missing environment variables early during startup
+    instead of failing later during request handling.
+    """
+
+    cfg = cfg or settings
+    issues: list[str] = []
+
+    # Supabase auth relies on a JWT secret; warn if it is absent to avoid
+    # accepting tokens without verification.
+    if not cfg.supabase_jwt_secret:
+        issues.append(
+            "SUPABASE_JWT_SECRET is not configured; Supabase JWT verification will fail."
+        )
+
+    # Supabase client requires both URL and anon/service key to operate.
+    if not cfg.supabase_url or not (
+        cfg.supabase_anon_key or cfg.supabase_service_role_key
+    ):
+        issues.append(
+            "Supabase URL or keys are missing; Supabase storage/DB helpers will be disabled."
+        )
+
+    llm_base = os.getenv("LLM_BASE_URL", "").strip()
+    if not llm_base:
+        issues.append(
+            "LLM_BASE_URL is not set; RAG generation endpoints will return errors until configured."
+        )
+
+    return issues
