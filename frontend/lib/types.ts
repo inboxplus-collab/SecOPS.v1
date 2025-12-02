@@ -34,7 +34,28 @@ export interface AuthLoginResponse {
  * ========================================================================== */
 
 export type IssueSeverity = "info" | "low" | "medium" | "high" | "critical";
-export type IssueStatus = "open" | "acknowledged" | "resolved" | "ignored";
+export type IssueStatus =
+  | "open"
+  | "acknowledged"
+  | "resolved"
+  | "ignored"
+  | "in_progress"
+  | "suppressed";
+
+export type IssueResolutionState = "resolved" | "suppressed" | "acknowledged";
+
+export interface IssueLocation {
+  kind?: string | null;
+  repo?: string | null;
+  file_path?: string | null;
+  line?: number | null;
+  cluster?: string | null;
+  namespace?: string | null;
+  resource_kind?: string | null;
+  resource_name?: string | null;
+  environment?: string | null;
+  metadata?: Record<string, any> | null;
+}
 
 export interface Issue {
   id: string;
@@ -46,17 +67,48 @@ export interface Issue {
   severity: IssueSeverity;
   status: IssueStatus;
 
-  source: string;          // github | k8s | ci | scanner | rag | manual
-  code?: string | null;    // rule / check id
+  source?: string | null; // github | k8s | ci | scanner | rag | manual
+  check_name?: string | null;
+  code?: string | null; // rule / check id
 
-  target?: string | null;  // repo, cluster, service, env, etc.
+  target?: string | null; // repo, cluster, service, env, etc.
   external_url?: string | null;
-
+  tags?: string[];
+  location?: IssueLocation | null;
   metadata?: Record<string, any> | null;
 
   created_at: ISODateString;
   updated_at: ISODateString;
+  first_seen_at?: ISODateString | null;
+  last_seen_at?: ISODateString | null;
   resolved_at?: ISODateString | null;
+}
+
+export interface IssueDetail extends Issue {
+  root_cause?: string | null;
+  impact?: string | null;
+  proposed_fix?: string | null;
+  precautions?: string | null;
+  references?: string[];
+  extra?: Record<string, any>;
+  resolved_by?: string | null;
+  resolution_state?: IssueResolutionState | null;
+  resolution_note?: string | null;
+}
+
+export interface IssuesTrendPoint {
+  date: string;
+  count: number;
+}
+
+export interface CheckStatusSlice {
+  status: string;
+  count: number;
+}
+
+export interface CostBreakdownItem {
+  category: string;
+  amount: number;
 }
 
 /* ============================================================================

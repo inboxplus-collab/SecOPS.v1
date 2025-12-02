@@ -81,4 +81,5 @@ const IssueDetailTabs: React.FC<IssueDetailTabsProps> = ({
   );
 };
 
+export { IssueDetailTabs };
 export default IssueDetailTabs;

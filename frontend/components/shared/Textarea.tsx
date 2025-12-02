@@ -28,7 +28,8 @@ export const Textarea: React.FC<TextareaProps> = ({
       <textarea
         id={inputId}
         className={clsx(
-          "w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500",
+          "w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-50",
+          "placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500",
           className
         )}
         rows={rest.rows ?? 4}

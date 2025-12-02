@@ -60,7 +60,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({
         {/* HEADER ROW */}
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
-            <h3 classname="text-lg font-semibold text-neutral-900">{title}</h3>
+            <h3 className="text-lg font-semibold text-neutral-900">{title}</h3>
 
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {/* Severity Tag */}
