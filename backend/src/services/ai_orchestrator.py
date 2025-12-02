@@ -47,6 +47,7 @@ class AIOrchestrator:
             code_summary=code_summary,
             code_issues=code_issues,
             db_summary=db_summary,
+            checks=check_runs,
             check_runs=check_runs,
             scanner_findings=scanner_findings,
         )

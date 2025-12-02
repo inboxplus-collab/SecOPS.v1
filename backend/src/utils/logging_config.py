@@ -1,9 +1,10 @@
 # backend/src/utils/logging_config.py
 
+import json
 import logging
 import sys
-import json
-from backend.src.utils.config import settings
+
+from utils.config import settings
 
 def setup_logging():
     class JsonFormatter(logging.Formatter):
