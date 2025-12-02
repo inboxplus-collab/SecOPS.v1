@@ -48,4 +48,5 @@ docker compose -f infra/docker-compose.yaml up --build
 ## Additional resources
 - Frontend integration guidance: `frontend/lib/appsSdkUiIntegration.ts`
 - Transformer and MoE background: `docs/gpt-architecture.md`
+- RAG and agentic integration blueprint: `docs/rag-agent-integration.md`
 - Fine-tuning, agent blueprint, and alignment playbook: `docs/llm-finetuning-and-agents.md`
