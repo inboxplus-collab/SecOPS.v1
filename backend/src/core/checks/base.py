@@ -15,13 +15,23 @@ from api.schemas.issues import (
 
 
 class LoggerLike(Protocol):
-    def info(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    """Protocol describing the minimal logging methods used by checks."""
 
-    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log an informational message."""
+        raise NotImplementedError
 
-    def error(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log a warning message."""
+        raise NotImplementedError
 
-    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None: ...
+    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log an error message."""
+        raise NotImplementedError
+
+    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Log an exception with traceback details."""
+        raise NotImplementedError
 
 
 @dataclass
@@ -177,4 +187,5 @@ class BaseCheck(ABC):
 
     @abstractmethod
     async def run(self, context: CheckContext, logger: LoggerLike) -> CheckRunResult:
-        ...
+        """Execute the check with the provided context and logger."""
+        raise NotImplementedError("Subclasses must implement run()")
