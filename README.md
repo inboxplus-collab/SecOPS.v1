@@ -1,5 +1,6 @@
 # SecOPS.v1
 
+This repository hosts SecOPS.v1. For background on the autonomous evolution engine and LLM agent concepts guiding this work, see the [autonomous evolution engine documentation](docs/autonomous_evolution_engine.md).
 SecOPS.v1 is an experimental security automation platform that layers a multi-LLM Retrieval-Augmented Generation (RAG) engine on top of infrastructure, code, and operational data. The goal is to give SecOps teams a single interface for questions such as vulnerability triage, playbook generation, and environment introspection.
 
 ## Multi-LLM RAG inspirations
