@@ -1,29 +1,38 @@
-from __future__ import annotations
+# backend/src/utils/logging_config.py
 
 import logging
 import sys
-from typing import Optional
+import json
+from backend.src.utils.config import settings
 
-from .config import settings
+def setup_logging():
+    class JsonFormatter(logging.Formatter):
+        def format(self, record):
+            log = {
+                "level": record.levelname,
+                "message": record.getMessage(),
+                "timestamp": self.formatTime(record),
+                "logger": record.name,
+            }
+            return json.dumps(log)
 
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JsonFormatter())
 
-def configure_logging(level: int = logging.INFO) -> None:
-    """
-    Configure root logger with a simple, production-friendly format.
-    """
-    log_level = level
+    root = logging.getLogger()
+    root.handlers = [handler]
+    root.setLevel(logging.INFO)
 
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        stream=sys.stdout,
-    )
+    if settings.SENTRY_DSN:
+        import sentry_sdk
+        from sentry_sdk.integrations.logging import LoggingIntegration
 
-    # Example: make SQLAlchemy a bit quieter
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-
-
-def get_logger(name: Optional[str] = None) -> logging.Logger:
-    return logging.getLogger(name or "secops")
+        sentry_logging = LoggingIntegration(
+            level=logging.ERROR,
+            event_level=logging.ERROR
+        )
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            traces_sample_rate=0.2,
+            integrations=[sentry_logging]
+        )

@@ -1,47 +1,54 @@
-from __future__ import annotations
-
-import os
-from typing import Any, Dict
+# backend/src/rag/llm_client.py
 
 import httpx
-
-from utils.config import settings
+from backend.src.utils.config import settings
+from backend.src.utils.errors import LLMError
 
 
 class LLMClient:
-    """
-    Minimal generic LLM client.
+    def __init__(self):
+        self.clients = {}
 
-    For production you can:
-      - Point LLM_BASE_URL to your gateway (OpenAI, Emergent, etc.).
-      - Set LLM_API_KEY for authentication.
-    """
+        if settings.OPENAI_API_KEY:
+            self.clients["openai"] = {
+                "key": settings.OPENAI_API_KEY,
+                "url": "https://api.openai.com/v1/chat/completions"
+            }
 
-    def __init__(self, model: str | None = None) -> None:
-        self._model = model or settings.rag_default_model
-        self._base_url = os.getenv("LLM_BASE_URL", "").rstrip("/")
-        self._api_key = os.getenv("LLM_API_KEY", "")
+        if settings.GROQ_API_KEY:
+            self.clients["groq"] = {
+                "key": settings.GROQ_API_KEY,
+                "url": "https://api.groq.com/openai/v1/chat/completions"
+            }
 
-    async def generate(self, prompt: str, max_tokens: int = 768) -> str:
-        """
-        Send a simple completion-style request.
+        if settings.MISTRAL_API_KEY:
+            self.clients["mistral"] = {
+                "key": settings.MISTRAL_API_KEY,
+                "url": "https://api.mistral.ai/v1/chat/completions"
+            }
 
-        This is intentionally generic: adjust based on your provider's API.
-        """
-        if not self._base_url:
-            raise RuntimeError("LLM_BASE_URL not configured")
+    async def ask(self, prompt: str, model: str = None) -> str:
+        model = model or settings.DEFAULT_MODEL
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(
-                f"{self._base_url}/v1/chat/completions",
-                json={
-                    "model": self._model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": max_tokens,
-                },
-                headers={"Authorization": f"Bearer {self._api_key}"} if self._api_key else None,
-            )
-            resp.raise_for_status()
-            data: Dict[str, Any] = resp.json()
-            # adjust based on your provider's response
-            return data["choices"][0]["message"]["content"]
+        for provider, cfg in self.clients.items():
+            try:
+                async with httpx.AsyncClient(timeout=60) as client:
+                    res = await client.post(
+                        cfg["url"],
+                        json={
+                            "model": model,
+                            "messages": [{"role": "user", "content": prompt}],
+                        },
+                        headers={"Authorization": f"Bearer {cfg['key']}"}
+                    )
+                if res.status_code == 200:
+                    data = res.json()
+                    return data["choices"][0]["message"]["content"]
+
+            except Exception as e:
+                continue  # try next provider
+
+        raise LLMError("All LLM providers failed")
+
+
+llm_client = LLMClient()

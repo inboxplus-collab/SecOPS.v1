@@ -1,31 +1,28 @@
-from __future__ import annotations
+# backend/src/utils/errors.py
 
-from fastapi import HTTPException, status
-
-
-class SecOpsError(Exception):
-    """Base app-level exception."""
+from fastapi import HTTPException
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 
-class NotFoundError(SecOpsError):
-    """Raised when a resource cannot be found."""
+class SecOpsError(HTTPException):
+    def __init__(self, message: str, status_code: int = 400):
+        super().__init__(status_code=status_code, detail=message)
 
 
-class PermissionDeniedError(SecOpsError):
-    """Raised when a user is not allowed to perform an action."""
+class IntegrationError(SecOpsError):
+    pass
 
 
-class ExternalServiceError(SecOpsError):
-    """Raised when an external system (GitHub, K8s, scanner) fails."""
+class LLMError(SecOpsError):
+    pass
 
 
-def http_404(detail: str = "Not found") -> HTTPException:
-    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+class AnalyzerError(SecOpsError):
+    pass
 
 
-def http_403(detail: str = "Forbidden") -> HTTPException:
-    return HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
-
-
-def http_400(detail: str = "Bad request") -> HTTPException:
-    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+def internal_error(message: str = "Internal server error"):
+    raise HTTPException(
+        status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=message
+    )
