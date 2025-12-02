@@ -48,3 +48,4 @@ docker compose -f infra/docker-compose.yaml up --build
 ## Additional resources
 - Frontend integration guidance: `frontend/lib/appsSdkUiIntegration.ts`
 - Transformer and MoE background: `docs/gpt-architecture.md`
+- Fine-tuning, agent blueprint, and alignment playbook: `docs/llm-finetuning-and-agents.md`
