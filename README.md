@@ -1,5 +1,7 @@
 # SecOPS.v1
 
+A curated reference for SecOPS.v1 resources.
+
 ## LLM Systems & Serving
 - [llama.cpp](https://github.com/ggerganov/llama.cpp): Lightweight C/C++ inference engine for running LLaMA-family models efficiently on local CPUs/GPUs.
 - [ollama](https://github.com/ollama/ollama): Local-first model runner with simple APIs and model packaging for serving LLMs on desktops or servers.
