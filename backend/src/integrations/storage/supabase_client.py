@@ -39,5 +39,62 @@ class SupabaseClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def select(
+        self,
+        table: str,
+        *,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: Optional[int] = None,
+    ) -> Any:
+        params = {"select": "*"}
+        if filters:
+            params.update({f"{k}.eq": v for k, v in filters.items()})
+        if limit is not None:
+            params["limit"] = limit
+        return await self.fetch_table(table, params=params)
+
+    async def upsert(
+        self,
+        table: str,
+        *,
+        rows: Dict[str, Any] | List[Dict[str, Any]],
+        on_conflict: Optional[str] = None,
+        returning: str = "representation",
+    ) -> Any:
+        payload = rows if isinstance(rows, list) else [rows]
+        params: Dict[str, Any] = {"return": returning}
+        if on_conflict:
+            params["on_conflict"] = on_conflict
+        resp = await self._client.post(
+            f"/rest/v1/{table}",
+            json=payload,
+            params=params,
+            headers={"Prefer": "resolution=merge-duplicates"},
+        )
+        resp.raise_for_status()
+        return resp.json() if returning != "minimal" else []
+
+    async def delete(self, table: str, *, filters: Dict[str, Any]) -> Any:
+        params = {f"{k}.eq": v for k, v in filters.items()}
+        resp = await self._client.delete(f"/rest/v1/{table}", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
     async def close(self) -> None:
         await self._client.aclose()
+
+
+_supabase_client: Optional[SupabaseClient] = None
+
+
+def get_supabase_client(app_settings: Any | None = None) -> SupabaseClient:
+    global _supabase_client
+    if _supabase_client is not None:
+        return _supabase_client
+
+    cfg = app_settings or settings
+    if not cfg.supabase_url or not cfg.supabase_anon_key:
+        raise RuntimeError("Supabase URL/anon key not configured")
+
+    _supabase_client = SupabaseClient(str(cfg.supabase_url), cfg.supabase_anon_key)
+    return _supabase_client

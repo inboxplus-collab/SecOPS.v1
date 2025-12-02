@@ -1,65 +1,103 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import Any, Dict, Optional
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from core.issues.models import Issue
-from api.schemas.issues import IssueCreate, IssueUpdate
-from utils.errors import NotFoundError
+from api.schemas.issues import IssueDetail, IssueResolutionState
+from core.issues.repository import IssuesRepository
+from db.session import get_session_maker
 
 
-async def create_issue(db: AsyncSession, payload: IssueCreate) -> Issue:
-    issue = Issue(
-        title=payload.title,
-        description=payload.description,
-        severity=payload.severity,
-        status=payload.status,
-        source=payload.source,
-        metadata=payload.metadata,
-    )
-    db.add(issue)
-    await db.flush()
-    await db.refresh(issue)
-    return issue
+class IssuesService:
+    """
+    Application-facing service for querying and mutating issues.
 
+    This wraps the repository layer with session management and transforms
+    ORM models into response DTOs used by the API layer.
+    """
 
-async def list_issues(
-    db: AsyncSession,
-    page: int = 1,
-    page_size: int = 20,
-    status: Optional[str] = None,
-    severity: Optional[str] = None,
-) -> Tuple[List[Issue], int]:
-    query = select(Issue)
-    count_query = select(func.count(Issue.id))
+    def __init__(self, settings: Any) -> None:
+        self.settings = settings
+        self.repo = IssuesRepository()
+        self._session_maker = get_session_maker()
 
-    if status:
-        query = query.where(Issue.status == status)
-        count_query = count_query.where(Issue.status == status)
-    if severity:
-        query = query.where(Issue.severity == severity)
-        count_query = count_query.where(Issue.severity == severity)
+    # ------------------------------------------------------------------
+    # Queries
+    # ------------------------------------------------------------------
 
-    total = (await db.execute(count_query)).scalar_one()
-    query = query.order_by(Issue.detected_at.desc()).offset((page - 1) * page_size).limit(page_size)
-    rows = (await db.execute(query)).scalars().all()
-    return rows, total
+    async def list_issues(
+        self,
+        *,
+        org_id: str,
+        status: Optional[str] = None,
+        severity: Optional[str] = None,
+        service: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
+        async with self._session_maker() as session:
+            items = await self.repo.list_issues(
+                session,
+                org_id=org_id,
+                status=status,
+                severity=severity,
+                service=service,
+                limit=limit,
+                offset=offset,
+            )
+            total = await self.repo.count_issues(
+                session,
+                org_id=org_id,
+                status=status,
+                severity=severity,
+                service=service,
+            )
 
+        summaries = [issue.to_summary() for issue in items]
+        return {
+            "items": summaries,
+            "total": total,
+            "page": (offset // limit) + 1,
+            "page_size": limit,
+        }
 
-async def get_issue(db: AsyncSession, issue_id: str) -> Issue:
-    issue = await db.get(Issue, issue_id)
-    if not issue:
-        raise NotFoundError(f"Issue {issue_id} not found")
-    return issue
+    async def get_issue(self, *, org_id: str, issue_id: str) -> Optional[Dict[str, Any]]:
+        async with self._session_maker() as session:
+            issue = await self.repo.get_issue(session, org_id=org_id, issue_id=issue_id)
+            if issue is None:
+                return None
+            detail: IssueDetail = issue.to_detail()
+            return detail.model_dump()
 
+    # ------------------------------------------------------------------
+    # Mutations
+    # ------------------------------------------------------------------
 
-async def update_issue(db: AsyncSession, issue_id: str, payload: IssueUpdate) -> Issue:
-    issue = await get_issue(db, issue_id)
-    data = payload.model_dump(exclude_unset=True)
-    for k, v in data.items():
-        setattr(issue, k, v)
-    await db.flush()
-    await db.refresh(issue)
-    return issue
+    async def resolve_issue(
+        self,
+        *,
+        org_id: str,
+        issue_id: str,
+        resolution_state: IssueResolutionState,
+        resolution_note: Optional[str],
+        resolved_by: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        async with self._session_maker() as session:
+            issue = await self.repo.update_issue_resolution(
+                session,
+                org_id=org_id,
+                issue_id=issue_id,
+                resolution_state=resolution_state,
+                resolution_note=resolution_note,
+                resolved_by=resolved_by,
+            )
+            if issue is None:
+                return None
+            await session.commit()
+            return issue.to_detail().model_dump()
+
+    async def upsert_issues_from_check_run(self, *, issues_data: list[dict[str, Any]]) -> Dict[str, int]:
+        async with self._session_maker() as session:
+            created, updated = await self.repo.upsert_many(session, issues_data)
+            await session.commit()
+            return {"created": created, "updated": updated}
+

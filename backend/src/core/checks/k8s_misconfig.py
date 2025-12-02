@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List
+from typing import Any, List
 
-from .base import BaseCheck, CheckContext, CheckResult
+from api.schemas.issues import IssueSeverity, IssueStatus, IssueLocation
+from .base import BaseCheck, CheckContext, CheckRunResult, LoggerLike
 from integrations.k8s.client import get_k8s_apps_api, get_k8s_core_api
 
 
@@ -12,49 +13,87 @@ class K8sMisconfigCheck(BaseCheck):
     name = "Kubernetes misconfiguration"
     description = "Checks basic K8s best practices: resource limits, public services, etc."
 
-    async def run(self, ctx: CheckContext) -> List[CheckResult]:
+    def __init__(self) -> None:
+        super().__init__(default_severity=IssueSeverity.medium)
+
+    async def run(self, context: CheckContext, logger: LoggerLike) -> CheckRunResult:
         apps_api = get_k8s_apps_api()
         core_api = get_k8s_core_api()
-        results: List[CheckResult] = []
+        issues: List[Any] = []
+        errors: List[str] = []
 
-        # NOTE: client is sync; we call it in thread in real world, but for simplicity we treat as sync here.
         deployments = apps_api.list_deployment_for_all_namespaces().items
         for dep in deployments:
             ns = dep.metadata.namespace
             name = dep.metadata.name
             for c in dep.spec.template.spec.containers:
                 if not (c.resources and c.resources.limits):
-                    results.append(
-                        CheckResult(
-                            check_id=self.id,
+                    location = IssueLocation(
+                        kind="k8s",
+                        namespace=ns,
+                        resource_kind="Deployment",
+                        resource_name=name,
+                        metadata={"container": c.name},
+                    )
+                    issues.append(
+                        self.build_issue(
+                            id=f"{context.org_id}:{ns}:{name}:{c.name}:limits",
+                            org_id=context.org_id or "unknown-org",
                             title=f"K8s deployment without resource limits: {ns}/{name}",
+                            severity=IssueSeverity.medium,
+                            status=IssueStatus.open,
+                            service=name,
+                            category="k8s",
+                            tags=["k8s", "resources", "hygiene"],
+                            location=location,
+                            source="k8s",
+                            short_description="Container has no resource limits set.",
                             description="Container has no resource limits set. This can lead to noisy neighbors and instability.",
-                            severity="medium",
-                            metadata={
-                                "namespace": ns,
-                                "deployment": name,
-                                "container": c.name,
-                            },
-                            detected_at=datetime.utcnow(),
+                            root_cause="Resource limits were omitted from the deployment spec.",
+                            impact="Pods may consume excessive resources and disrupt cluster stability.",
+                            proposed_fix="Define CPU/memory requests and limits for each container.",
+                            precautions="Validate limits in staging before rollout.",
+                            references=[],
+                            extra={},
                         )
                     )
 
-        # Public LoadBalancer services
         services = core_api.list_service_for_all_namespaces().items
         for svc in services:
             if svc.spec.type == "LoadBalancer" and not svc.spec.load_balancer_source_ranges:
-                results.append(
-                    CheckResult(
-                        check_id=self.id,
+                location = IssueLocation(
+                    kind="k8s",
+                    namespace=svc.metadata.namespace,
+                    resource_kind="Service",
+                    resource_name=svc.metadata.name,
+                )
+                issues.append(
+                    self.build_issue(
+                        id=f"{context.org_id}:{svc.metadata.namespace}:{svc.metadata.name}:public",
+                        org_id=context.org_id or "unknown-org",
                         title=f"Public LoadBalancer service: {svc.metadata.namespace}/{svc.metadata.name}",
+                        severity=IssueSeverity.high,
+                        status=IssueStatus.open,
+                        service=svc.metadata.name,
+                        category="k8s",
+                        tags=["k8s", "network", "exposure"],
+                        location=location,
+                        source="k8s",
+                        short_description="Service is exposed via public LoadBalancer.",
                         description="Service of type LoadBalancer without source ranges can be exposed to the whole internet.",
-                        severity="high",
-                        metadata={
-                            "namespace": svc.metadata.namespace,
-                            "service": svc.metadata.name,
-                        },
-                        detected_at=datetime.utcnow(),
+                        root_cause="Service type set to LoadBalancer without source ranges.",
+                        impact="Workloads may be reachable from untrusted networks.",
+                        proposed_fix="Restrict source ranges or use ClusterIP/Ingress based exposure.",
+                        precautions="Ensure ingress paths remain functional after changes.",
+                        references=[],
+                        extra={},
                     )
                 )
 
-        return results
+        metrics = {
+            "deployments_scanned": len(deployments),
+            "services_scanned": len(services),
+            "issues_found": len(issues),
+        }
+
+        return CheckRunResult(issues=issues, metrics=metrics, errors=errors)
