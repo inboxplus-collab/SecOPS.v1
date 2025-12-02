@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,27 +16,7 @@ from api.schemas.issues import (
 
 
 class LoggerLike(Protocol):
-    """Minimal logger contract used by checks.
-
-    The protocol mirrors the subset of the stdlib ``logging.Logger`` API that
-    checks rely on. Concrete implementations can be standard loggers, adapters,
-    or test doubles used in unit tests. The default implementations below raise
-    ``NotImplementedError`` so that accidental direct use is surfaced during
-    execution.
-    """
-
-    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        raise NotImplementedError("Logger.info must be implemented by subclasses")
-
-    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        raise NotImplementedError("Logger.warning must be implemented by subclasses")
-
-    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        raise NotImplementedError("Logger.error must be implemented by subclasses")
-
-    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:
-        raise NotImplementedError("Logger.exception must be implemented by subclasses")
-    """Protocol describing the minimal logging methods used by checks."""
+    """Minimal logger contract used by checks."""
 
     def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
         """Log an informational message."""
@@ -54,30 +35,39 @@ class LoggerLike(Protocol):
         raise NotImplementedError
 
 
+class NullLogger(LoggerLike):
+    """No-op logger used when checks are executed without a logger instance."""
+
+    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - trivial
+        logging.getLogger(__name__).debug(msg, *args, **kwargs)
+
+    def warning(self, msg: str, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - trivial
+        logging.getLogger(__name__).debug(msg, *args, **kwargs)
+
+    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - trivial
+        logging.getLogger(__name__).debug(msg, *args, **kwargs)
+
+    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - trivial
+        logging.getLogger(__name__).debug(msg, *args, **kwargs)
+
+
 @dataclass
 class CheckContext:
-    """
-    Inputs needed by checks to run.
+    """Inputs needed by checks to run."""
 
-    Includes handles to integrations (GitHub, K8s, CI, scanners, etc.)
-    and global configuration.
-    """
-
-    org_id: Optional[str]
-    settings: Any
-    extras: Dict[str, Any] | None = None
+    org_id: Optional[str] = None
+    settings: Any | None = None
+    extra: Dict[str, Any] | None = None
 
     def get_extra(self, key: str, default: Any = None) -> Any:
-        if not self.extras:
+        if not self.extra:
             return default
-        return self.extras.get(key, default)
+        return self.extra.get(key, default)
 
 
 @dataclass
 class CheckIssuePayload:
-    """
-    Lightweight issue representation produced by checks before persistence.
-    """
+    """Lightweight issue representation produced by checks before persistence."""
 
     id: str
     org_id: str
@@ -130,9 +120,7 @@ class CheckIssuePayload:
 
 @dataclass
 class CheckRunResult:
-    """
-    Output of a check execution returned to the scheduler.
-    """
+    """Output of a check execution returned to the scheduler."""
 
     issues: List[CheckIssuePayload]
     metrics: Dict[str, Any]
@@ -143,12 +131,7 @@ class CheckRunResult:
 
 
 class BaseCheck(ABC):
-    """
-    Base class for all SecOpsAI checks.
-
-    Each subclass must implement `run`, returning a CheckRunResult with
-    structured issues, metrics, and any non-fatal errors.
-    """
+    """Base class for all SecOpsAI checks."""
 
     id: str
     name: str
@@ -206,7 +189,9 @@ class BaseCheck(ABC):
         )
 
     @abstractmethod
-    async def run(self, context: CheckContext, logger: LoggerLike) -> CheckRunResult:
-        raise NotImplementedError("Checks must implement the run() coroutine")
+    async def run(
+        self, context: CheckContext, logger: LoggerLike | None = None
+    ) -> CheckRunResult:
         """Execute the check with the provided context and logger."""
+
         raise NotImplementedError("Subclasses must implement run()")

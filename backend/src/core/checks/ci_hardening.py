@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, List
 
 from api.schemas.issues import IssueSeverity, IssueStatus, IssueLocation
-from .base import BaseCheck, CheckContext, CheckRunResult, LoggerLike
+from .base import BaseCheck, CheckContext, CheckRunResult, LoggerLike, NullLogger
 from integrations.ci.github_actions import GitHubActionsClient
 
 
@@ -16,8 +16,20 @@ class CIHardeningCheck(BaseCheck):
     def __init__(self) -> None:
         super().__init__(default_severity=IssueSeverity.high)
 
-    async def run(self, context: CheckContext, logger: LoggerLike) -> CheckRunResult:
-        client = GitHubActionsClient.from_env()
+    async def run(
+        self, context: CheckContext, logger: LoggerLike | None = None
+    ) -> CheckRunResult:
+        logger = logger or NullLogger()
+
+        try:
+            client = GitHubActionsClient.from_env()
+        except Exception as exc:  # noqa: BLE001 - defensive guard for missing tokens
+            logger.warning("CIHardeningCheck skipped: %s", exc)
+            return CheckRunResult(
+                issues=[],
+                metrics={"skipped": True, "reason": "missing_github_token"},
+                errors=[str(exc)],
+            )
         repo_full_name = context.get_extra("github_repo")
         if not repo_full_name:
             return CheckRunResult(
@@ -26,7 +38,15 @@ class CIHardeningCheck(BaseCheck):
                 errors=[],
             )
 
-        workflows = await client.list_workflows(repo_full_name)
+        try:
+            workflows = await client.list_workflows(repo_full_name)
+        except Exception as exc:  # noqa: BLE001 - remote failures should not crash tests
+            logger.warning("CIHardeningCheck failed to list workflows: %s", exc)
+            return CheckRunResult(
+                issues=[],
+                metrics={"skipped": True, "reason": "workflow_fetch_error"},
+                errors=[str(exc)],
+            )
         issues: List[Any] = []
         errors: List[str] = []
 

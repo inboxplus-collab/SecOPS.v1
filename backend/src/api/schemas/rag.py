@@ -1,30 +1,52 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 
-class RagQueryPayload(BaseModel):
-    question: Annotated[str, Field(min_length=3)]
-    intent: Optional[str] = Field(None, description="Optional hint: 'security', 'cost', 'devops', etc.")
-    context: Dict[str, Any] = Field(default_factory=dict)
-    debug: bool = False
+class RAGQueryRequest(BaseModel):
+    """Request payload for RAG queries."""
+
+    query: str = Field(..., min_length=3, description="User question to answer")
+    intent: Optional[str] = Field(None, description="Optional hint: security|cost|devops")
+    user_id: Optional[str] = None
+    org_id: Optional[str] = None
+    max_tokens: Optional[int] = None
+    temperature: Optional[float] = None
+    top_k: Optional[int] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def question(self) -> str:
+        """Compatibility accessor for older naming."""
+
+        return self.query
 
 
-class RagCitation(BaseModel):
-    id: Optional[str] = None
-    title: Optional[str] = None
-    url: Optional[str] = None
-    snippet: Optional[str] = None
-    source_type: Optional[str] = Field(None, description="github|k8s|ci|scanner|doc|web")
+class RAGQueryResponse(BaseModel):
+    """Normalized RAG response returned by the API layer."""
 
-
-class RagQueryResponse(BaseModel):
     answer: str
-    intent: str
-    mode: str  # e.g. "rag", "direct_llm", "search_only"
-    citations: List[RagCitation] = Field(default_factory=list)
-    latency_ms: Optional[int] = None
-    status: str = "ok"
-    error_message: Optional[str] = None
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
+    usage: Optional[Dict[str, Any]] = None
+    intent: Optional[str] = None
+    debug: Optional[Dict[str, Any]] = None
+
+
+class RAGExplainRequest(BaseModel):
+    query: str = Field(..., min_length=3)
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RAGExplainResponse(BaseModel):
+    explanation: str
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class RAGDebugRequest(BaseModel):
+    query: str = Field(..., min_length=3)
+
+
+class RAGDebugResponse(BaseModel):
+    debug_trace: Dict[str, Any]

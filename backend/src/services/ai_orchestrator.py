@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from core.checks.base import CheckContext, CheckResult
+from core.checks.base import CheckContext, CheckRunResult
 from core.checks.ci_hardening import CIHardeningCheck
 from core.checks.k8s_misconfig import K8sMisconfigCheck
 from integrations.security.scanners import ScanFinding, SecurityScannerClient
@@ -57,12 +57,12 @@ class AIOrchestrator:
 
         db_summary = self.db_client.summarize(request.database_schema)
 
-        checks: List[CheckResult] = []
+        check_runs: List[CheckRunResult] = []
         if request.github_repo:
-            checks.extend(await CIHardeningCheck().run(ctx))
+            check_runs.append(await CIHardeningCheck().run(ctx))
 
         if request.k8s_enabled:
-            checks.extend(await K8sMisconfigCheck().run(ctx))
+            check_runs.append(await K8sMisconfigCheck().run(ctx))
 
         scanner_findings = await self._run_scanners(request.container_images or [])
 
@@ -80,7 +80,7 @@ class AIOrchestrator:
                 "issues": [issue.__dict__ for issue in code_issues],
             },
             "database": db_summary,
-            "checks": [self._format_check_result(res) for res in checks],
+            "checks": self._format_check_runs(check_runs),
             "scanners": scanner_findings,
             "rag_summary": rag_summary,
         }
@@ -101,17 +101,37 @@ class AIOrchestrator:
                     })
         return findings
 
-    def _format_check_result(self, res: CheckResult) -> Dict[str, Any]:
-        return {
-            "check_id": res.check_id,
-            "title": res.title,
-            "description": res.description,
-            "severity": res.severity,
-            "metadata": res.metadata,
-            "detected_at": res.detected_at.isoformat()
-            if isinstance(res.detected_at, datetime)
-            else res.detected_at,
-        }
+    def _format_check_runs(self, runs: List[CheckRunResult]) -> List[Dict[str, Any]]:
+        formatted: List[Dict[str, Any]] = []
+
+        for run in runs:
+            for issue in run.issues:
+                formatted.append(
+                    {
+                        "check_id": issue.check_name,
+                        "title": issue.title,
+                        "description": issue.description or issue.short_description,
+                        "severity": str(issue.severity),
+                        "metadata": issue.extra,
+                        "detected_at": issue.first_seen_at.isoformat()
+                        if isinstance(issue.first_seen_at, datetime)
+                        else issue.first_seen_at,
+                    }
+                )
+
+            if not run.issues and run.metrics.get("skipped"):
+                formatted.append(
+                    {
+                        "check_id": "n/a",
+                        "title": "Check skipped",
+                        "description": run.metrics.get("reason", "unknown"),
+                        "severity": "info",
+                        "metadata": run.metrics,
+                        "detected_at": None,
+                    }
+                )
+
+        return formatted
 
     async def _summarize_with_rag(
         self,
@@ -119,7 +139,7 @@ class AIOrchestrator:
         code_summary: Dict[str, Any],
         code_issues: List[CodeIssue],
         db_summary: Dict[str, Any],
-        checks: List[CheckResult],
+        checks: List[CheckRunResult],
         scanner_findings: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """

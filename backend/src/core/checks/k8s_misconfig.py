@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, List
 
 from api.schemas.issues import IssueSeverity, IssueStatus, IssueLocation
-from .base import BaseCheck, CheckContext, CheckRunResult, LoggerLike
+from .base import BaseCheck, CheckContext, CheckRunResult, LoggerLike, NullLogger
 from integrations.k8s.client import get_k8s_apps_api, get_k8s_core_api
 
 
@@ -16,13 +16,31 @@ class K8sMisconfigCheck(BaseCheck):
     def __init__(self) -> None:
         super().__init__(default_severity=IssueSeverity.medium)
 
-    async def run(self, context: CheckContext, logger: LoggerLike) -> CheckRunResult:
-        apps_api = get_k8s_apps_api()
-        core_api = get_k8s_core_api()
+    async def run(
+        self, context: CheckContext, logger: LoggerLike | None = None
+    ) -> CheckRunResult:
+        logger = logger or NullLogger()
         issues: List[Any] = []
         errors: List[str] = []
 
-        deployments = apps_api.list_deployment_for_all_namespaces().items
+        try:
+            apps_api = get_k8s_apps_api()
+            core_api = get_k8s_core_api()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("K8sMisconfigCheck skipped: %s", exc)
+            return CheckRunResult(
+                issues=[],
+                metrics={"skipped": True, "reason": "k8s_client_error"},
+                errors=[str(exc)],
+            )
+
+        try:
+            deployments = apps_api.list_deployment_for_all_namespaces().items
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("K8sMisconfigCheck could not list deployments: %s", exc)
+            deployments = []
+            errors.append(str(exc))
+
         for dep in deployments:
             ns = dep.metadata.namespace
             name = dep.metadata.name
@@ -58,7 +76,13 @@ class K8sMisconfigCheck(BaseCheck):
                         )
                     )
 
-        services = core_api.list_service_for_all_namespaces().items
+        try:
+            services = core_api.list_service_for_all_namespaces().items
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("K8sMisconfigCheck could not list services: %s", exc)
+            services = []
+            errors.append(str(exc))
+
         for svc in services:
             if svc.spec.type == "LoadBalancer" and not svc.spec.load_balancer_source_ranges:
                 location = IssueLocation(
@@ -91,8 +115,8 @@ class K8sMisconfigCheck(BaseCheck):
                 )
 
         metrics = {
-            "deployments_scanned": len(deployments),
-            "services_scanned": len(services),
+            "deployments_scanned": len(deployments) if 'deployments' in locals() else 0,
+            "services_scanned": len(services) if 'services' in locals() else 0,
             "issues_found": len(issues),
         }
 

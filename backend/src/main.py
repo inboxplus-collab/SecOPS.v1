@@ -23,7 +23,14 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 # Routers
-from api.routes import analysis, rag, platform, integrations, admin, auth  # type: ignore[attr-defined]
+from api.routes import platform, rag  # core routes used in tests
+
+try:  # Optional routes may rely on heavyweight dependencies
+    from api.routes import analysis, integrations, admin, auth  # type: ignore[attr-defined]
+except Exception as exc:  # noqa: BLE001
+    logging.getLogger(__name__).warning("Optional routers could not be loaded: %s", exc)
+    analysis = integrations = admin = auth = None
+
 from utils.config import validate_runtime_config
 
 logger = logging.getLogger(__name__)
@@ -166,12 +173,16 @@ async def health() -> Dict[str, Any]:
 
 # IMPORTANT: these assumes your router modules expose `router: APIRouter`
 
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-app.include_router(analysis.router, prefix="/api", tags=["analysis"])
-app.include_router(rag.router, prefix="/api/rag", tags=["rag"])
-app.include_router(platform.router, prefix="/api/platform", tags=["platform"])
-app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
-app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+if auth:
+    app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+if analysis:
+    app.include_router(analysis.router, prefix="/api", tags=["analysis"])
+app.include_router(rag.router)
+app.include_router(platform.router)
+if integrations:
+    app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
+if admin:
+    app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 
 # ---------------------------------------------------------------------------
