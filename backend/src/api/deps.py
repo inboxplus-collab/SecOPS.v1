@@ -106,7 +106,7 @@ def db_session() -> Generator[Session, None, None]:
 
     Usage:
         def route(db: Session = Depends(db_session)):
-            ...
+            return db.execute(select(MyModel)).scalars().all()
     """
     try:
         db = get_db()

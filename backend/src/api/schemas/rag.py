@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 
 class RagQueryPayload(BaseModel):
-    question: str = Field(..., min_length=3)
+    question: Annotated[str, Field(min_length=3)]
     intent: Optional[str] = Field(None, description="Optional hint: 'security', 'cost', 'devops', etc.")
     context: Dict[str, Any] = Field(default_factory=dict)
     debug: bool = False

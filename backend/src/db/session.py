@@ -46,7 +46,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     FastAPI dependency:
 
         async def route(db: AsyncSession = Depends(get_db)):
-            ...
+            result = await db.execute(select(MyModel))
+            return result.scalars().all()
 
     """
     session = get_session_maker()()
