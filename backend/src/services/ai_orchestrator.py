@@ -1,56 +1,56 @@
-"""LLM-guided remediation helper with optional auto-repair."""
-
-from __future__ import annotations
-
-from typing import Any, Awaitable, Callable, Dict
-
-from integrations.targets.code_client import CodeClient
-from rag.llm_client import llm_client
+from backend.src.extensions.auto_updater.repo_client import repo_client
+from backend.src.extensions.auto_updater.diff_engine import diff_engine
+from backend.src.extensions.auto_updater.analyzer_client import analyzer_client
+from backend.src.extensions.auto_updater.patch_engine import patch_engine
+from backend.src.extensions.auto_updater.validator import validator
 
 
-ConfirmCallback = Callable[[str], Awaitable[bool]]
+class AutoUpdaterAgent:
 
-
-class AIOrchestrator:
-    """Coordinate LLM reasoning with repository-aware diagnostics."""
-
-    async def suggest_fixes(self, repo_path: str) -> str:
+    async def update_file(self, path: str) -> dict:
         """
-        Run static analysis on the repository and ask the LLM for precise fixes.
+        Full pipeline:
+        1. Pull file
+        2. Analyze
+        3. Generate patch
+        4. Validate patch
+        5. Commit to repo
         """
 
-        code = CodeClient(repo_path)
-        issues = code.run_static_analysis()
+        # 1. Fetch
+        old_content, sha = await repo_client.get_file(path)
 
-        prompt = f"""
-        Analyze these code issues and generate:
-        - exact fixes for each issue
-        - new code blocks
-        - explanation of changes
+        # 2. Analyze
+        analysis = await analyzer_client.analyze_file(old_content, path)
 
-        ISSUES:
-        {issues}
-        """
+        issues = analysis["static_issues"]
+        issues.append(analysis["ai_report"])
 
-        return await llm_client.ask(prompt)
+        if not issues:
+            return {"updated": False, "reason": "No issues found"}
 
-    async def auto_repair(self, repo_path: str, confirm_callback: ConfirmCallback) -> Dict[str, Any]:
-        """
-        Suggest fixes and only apply them when the caller confirms.
+        # 3. Patch
+        patched = await patch_engine.generate_patch(path, old_content, issues)
 
-        Currently returns the LLM suggestion payload so the caller can review
-        and optionally apply patches with a follow-up step.
-        """
+        # 4. Validate
+        if not validator.validate_python(patched):
+            return {"updated": False, "reason": "AI patch invalid"}
 
-        suggestions = await self.suggest_fixes(repo_path)
+        # 5. Commit patch
+        diff = diff_engine.generate_diff(old_content, patched, path)
 
-        apply = await confirm_callback(suggestions)
-        if not apply:
-            return {"status": "aborted", "message": "User rejected auto-fix."}
+        await repo_client.push_file(
+            path,
+            patched,
+            sha,
+            message=f"[SecOpsAI] Auto-fix: {path}"
+        )
 
-        # In a real remediation flow, this is where patches would be applied
-        # using CodeClient.rewrite_file or similar helpers.
-        return {"status": "success", "applied_changes": suggestions}
+        return {
+            "updated": True,
+            "diff": diff,
+            "issues_found": issues
+        }
 
 
-aio_orchestrator = AIOrchestrator()
+auto_updater = AutoUpdaterAgent()
