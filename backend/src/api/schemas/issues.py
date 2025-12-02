@@ -103,7 +103,25 @@ class IssueBase(BaseModel):
 
 
 class IssueCreate(IssueBase):
-    pass
+    org_id: str
+    check_name: str
+    service: Optional[str] = None
+    category: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    location: Optional[IssueLocation] = None
+    short_description: Optional[str] = None
+    root_cause: Optional[str] = None
+    impact: Optional[str] = None
+    proposed_fix: Optional[str] = None
+    precautions: Optional[str] = None
+    references: List[str] = Field(default_factory=list)
+    extra: Dict[str, Any] = Field(default_factory=dict)
+    first_seen_at: Optional[datetime] = None
+    last_seen_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+    resolution_state: Optional[IssueResolutionState] = None
+    resolution_note: Optional[str] = None
+    resolved_by: Optional[str] = None
 
 
 class IssueUpdate(BaseModel):

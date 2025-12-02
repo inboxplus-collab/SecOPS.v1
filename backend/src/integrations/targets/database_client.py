@@ -95,8 +95,8 @@ class DatabaseTargetClient:
         finally:
             try:
                 engine.dispose()
-            except Exception:
-                pass
+            except Exception as exc:  # pragma: no cover - defensive cleanup
+                logger.debug("DatabaseTargetClient: engine dispose failed: %s", exc)
 
     def _summarize_from_metadata(self, schema_metadata: Optional[dict]) -> List[TableSummary]:
         tables_raw = schema_metadata.get("tables") if schema_metadata else []
