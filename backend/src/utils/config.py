@@ -2,15 +2,6 @@
 
 import os
 from pydantic import BaseSettings, Field
-from functools import lru_cache
-from typing import Optional
-
-from pydantic import AnyHttpUrl, Field
-
-try:  # pragma: no cover - import guard for environments without pydantic-settings
-    from pydantic_settings import BaseSettings
-except Exception:  # noqa: BLE001
-    from pydantic import BaseModel as BaseSettings
 
 
 class Settings(BaseSettings):
