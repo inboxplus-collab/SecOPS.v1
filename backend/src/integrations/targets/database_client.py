@@ -1,110 +1,170 @@
 from __future__ import annotations
 
-import json
-import logging
-from dataclasses import dataclass
-from typing import Dict, List, Optional
-
-from sqlalchemy import create_engine, inspect
+from typing import Dict, List
 
 
-logger = logging.getLogger(__name__)
+class DatabaseClient:
+    """Enterprise-aware database scanner.
 
-
-@dataclass
-class TableSummary:
-    name: str
-    columns: int
-    notes: str
-
-
-class DatabaseTargetClient:
-    """
-    Lightweight database target client.
-
-    The client does not establish real network connections; instead it accepts
-    declarative metadata about the target database to keep the orchestrator's
-    contract simple and testable.
+    Each connector is optional and only runs when its driver and connection
+    string are available via environment variables. The goal is to return
+    actionable findings without failing the overall analysis run.
     """
 
-    def __init__(self, connection_string: Optional[str] = None) -> None:
-        self.connection_string = connection_string or ""
-
-    def summarize(self, schema_metadata: Optional[dict] = None) -> Dict[str, object]:
-        """
-        Summarize a target database using provided metadata.
-
-        It will attempt to introspect the database when a connection string is
-        available, otherwise it uses the provided `schema_metadata` shape of:
-        {"tables": [{"name": "users", "columns": 5, "notes": ""}]}.
-        """
-        tables = self._collect_table_summaries(schema_metadata)
-
-        payload = {
-            "connection": self.connection_string,
-            "tables": [t.__dict__ for t in tables],
-        }
-
-        if schema_metadata is not None:
-            payload["raw"] = json.dumps(schema_metadata)
-
-        return payload
+    def __init__(self) -> None:
+        pass
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    def scan_databases(self) -> List[Dict]:
+        findings: List[Dict] = []
+        findings.extend(self._scan_postgres())
+        findings.extend(self._scan_mysql())
+        findings.extend(self._scan_mssql())
+        findings.extend(self._scan_mongo())
+        return findings
+
     # ------------------------------------------------------------------
-    def _collect_table_summaries(self, schema_metadata: Optional[dict]) -> List[TableSummary]:
-        if self.connection_string:
-            tables = self._summarize_from_connection()
-            if tables:
-                return tables
+    def _scan_postgres(self) -> List[Dict]:
+        import os
 
-        return self._summarize_from_metadata(schema_metadata)
+        dsn = os.getenv("POSTGRES_DSN")
+        if not dsn:
+            return []
 
-    def _summarize_from_connection(self) -> List[TableSummary]:
-        """Reflect tables from the configured database connection."""
-
+        findings: List[Dict] = []
         try:
-            engine = create_engine(self.connection_string)
-        except Exception as exc:  # pragma: no cover - best-effort logging
-            logger.warning("DatabaseTargetClient: failed to build engine: %s", exc)
+            import psycopg2  # type: ignore
+        except Exception:
             return []
 
         try:
-            inspector = inspect(engine)
-            table_names = inspector.get_table_names()
-            summaries: List[TableSummary] = []
-            for name in table_names:
-                try:
-                    columns = inspector.get_columns(name)
-                    comment = inspector.get_table_comment(name).get("text") or ""
-                except Exception:
-                    columns = []
-                    comment = ""
-                summaries.append(
-                    TableSummary(
-                        name=name,
-                        columns=len(columns),
-                        notes=comment,
-                    )
+            conn = psycopg2.connect(dsn, connect_timeout=5)
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT tablename
+                FROM pg_tables
+                WHERE schemaname = 'public';
+                """
+            )
+            for (name,) in cur.fetchall():
+                findings.append(
+                    {
+                        "severity": "info",
+                        "issue": f"Table '{name}' exists in public schema (consider restricted schemas).",
+                        "source": "postgres",
+                    }
                 )
-            return summaries
-        except Exception as exc:  # pragma: no cover - best-effort logging
-            logger.warning("DatabaseTargetClient: reflection failed: %s", exc)
-            return []
+        except Exception:
+            return findings
         finally:
             try:
-                engine.dispose()
-            except Exception as exc:  # pragma: no cover - defensive cleanup
-                logger.debug("DatabaseTargetClient: engine dispose failed: %s", exc)
+                conn.close()
+            except Exception:
+                pass
+        return findings
 
-    def _summarize_from_metadata(self, schema_metadata: Optional[dict]) -> List[TableSummary]:
-        tables_raw = schema_metadata.get("tables") if schema_metadata else []
-        return [
-            TableSummary(
-                name=str(t.get("name", "unknown")),
-                columns=int(t.get("columns", 0)),
-                notes=t.get("notes", ""),
-            )
-            for t in tables_raw
-        ]
+    def _scan_mysql(self) -> List[Dict]:
+        import os
+
+        dsn = os.getenv("MYSQL_DSN")
+        if not dsn:
+            return []
+
+        findings: List[Dict] = []
+        try:
+            import pymysql  # type: ignore
+        except Exception:
+            return []
+
+        try:
+            conn = pymysql.connect(dsn, connect_timeout=5)  # type: ignore[arg-type]
+            cur = conn.cursor()
+            cur.execute("SHOW DATABASES;")
+            for (db_name,) in cur.fetchall():
+                if db_name in {"information_schema", "mysql", "performance_schema"}:
+                    continue
+                findings.append(
+                    {
+                        "severity": "info",
+                        "issue": f"Database '{db_name}' accessible; verify least privilege roles.",
+                        "source": "mysql",
+                    }
+                )
+        except Exception:
+            return findings
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return findings
+
+    def _scan_mssql(self) -> List[Dict]:
+        import os
+
+        dsn = os.getenv("MSSQL_DSN")
+        if not dsn:
+            return []
+
+        findings: List[Dict] = []
+        try:
+            import pyodbc  # type: ignore
+        except Exception:
+            return []
+
+        try:
+            conn = pyodbc.connect(dsn, timeout=5)
+            cur = conn.cursor()
+            cur.execute("SELECT name FROM sys.databases;")
+            for (name,) in cur.fetchall():
+                findings.append(
+                    {
+                        "severity": "info",
+                        "issue": f"MSSQL database '{name}' detected; audit encryption and row-level security.",
+                        "source": "mssql",
+                    }
+                )
+        except Exception:
+            return findings
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return findings
+
+    def _scan_mongo(self) -> List[Dict]:
+        import os
+
+        uri = os.getenv("MONGO_URI")
+        if not uri:
+            return []
+
+        findings: List[Dict] = []
+        try:
+            import pymongo  # type: ignore
+        except Exception:
+            return []
+
+        try:
+            client = pymongo.MongoClient(uri, serverSelectionTimeoutMS=3000)
+            db_names = client.list_database_names()
+            for name in db_names:
+                if name in {"admin", "local", "config"}:
+                    continue
+                findings.append(
+                    {
+                        "severity": "info",
+                        "issue": f"Mongo database '{name}' reachable; ensure SCRAM auth and network policies.",
+                        "source": "mongodb",
+                    }
+                )
+        except Exception:
+            return findings
+        finally:
+            try:
+                client.close()
+            except Exception:
+                pass
+        return findings

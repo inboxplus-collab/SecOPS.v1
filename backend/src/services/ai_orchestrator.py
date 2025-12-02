@@ -1,44 +1,21 @@
-from __future__ import annotations
-
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-
-from core.checks.base import CheckContext, CheckRunResult
-from core.checks.ci_hardening import CIHardeningCheck
-from core.checks.k8s_misconfig import K8sMisconfigCheck
-from integrations.security.scanners import ScanFinding, SecurityScannerClient
-from integrations.targets.code_client import CodeIssue, CodeTargetClient
-from integrations.targets.database_client import DatabaseTargetClient
-from rag.SearchOrchestrator import SearchOrchestrator
-
-
-@dataclass
-class AnalysisRequest:
-    repo_path: Optional[str] = None
-    github_repo: Optional[str] = None
-    database_url: Optional[str] = None
-    database_schema: Optional[Dict[str, Any]] = None
-    container_images: Optional[List[str]] = None
-    k8s_enabled: bool = False
+import os
+from integrations.targets.code_client import CodeClient
+from rag.llm_client import llm_client
 
 
 class AIOrchestrator:
-    """High-level pipeline coordinating multi-target analysis."""
+    async def suggest_fixes(self, repo_path: str):
+        code = CodeClient(repo_path)
+        issues = code.run_static_analysis()
 
-    def __init__(
-        self,
-        code_client: CodeTargetClient | None = None,
-        db_client: DatabaseTargetClient | None = None,
-        scanner: SecurityScannerClient | None = None,
-        search_orchestrator: SearchOrchestrator | None = None,
-    ) -> None:
-        self.code_client = code_client or CodeTargetClient()
-        self.db_client = db_client or DatabaseTargetClient()
-        self.scanner = scanner or SecurityScannerClient()
-        self.search_orchestrator = search_orchestrator or SearchOrchestrator()
+        prompt = f"""
+        Analyze these code issues and generate:
+        - exact fixes for each issue
+        - new code blocks
+        - explanation of changes
 
-    async def run(self, request: AnalysisRequest) -> Dict[str, Any]:
+        ISSUES:
+        {issues}
         """
         Execute the multi-target pipeline.
 
@@ -131,8 +108,9 @@ class AIOrchestrator:
                     }
                 )
 
-        return formatted
+        return await llm_client.ask(prompt)
 
+    async def auto_repair(self, repo_path: str, confirm_callback):
     async def _summarize_with_rag(
         self,
         *,
@@ -143,20 +121,16 @@ class AIOrchestrator:
         scanner_findings: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
-        Push the structured results through a lightweight RAG layer to produce
-        a human-friendly summary. Any errors are swallowed so that the base
-        analysis remains available even without LLM configuration.
+        Only applies a fix if the user confirms.
         """
 
-        doc_lines: List[str] = ["Codebase summary:", str(code_summary)]
-        if code_issues:
-            doc_lines.append("Notable inline issues:")
-            for issue in code_issues[:10]:
-                doc_lines.append(f"- {issue.path}:{issue.line} -> {issue.message}")
+        suggestions = await self.suggest_fixes(repo_path)
 
-        doc_lines.append("Database summary:")
-        doc_lines.append(str(db_summary))
+        apply = await confirm_callback(suggestions)
+        if not apply:
+            return {"status": "aborted", "message": "User rejected auto-fix."}
 
+        return {"status": "success", "applied_changes": suggestions}
         if check_runs:
             doc_lines.append("Check results:")
             for run in check_runs:
@@ -168,33 +142,5 @@ class AIOrchestrator:
                 elif run.metrics.get("skipped"):
                     doc_lines.append(f"- [info] Check skipped :: {run.metrics.get('reason', 'unknown')}")
 
-        if scanner_findings:
-            doc_lines.append("Scanner findings:")
-            for finding in scanner_findings:
-                doc_lines.append(
-                    f"- ({finding.get('severity')}) {finding.get('title')} from {finding.get('source')}"
-                )
 
-        try:
-            combined_text = "\n".join(doc_lines)
-            self.search_orchestrator.upsert_doc(
-                id="analysis-snapshot",
-                text=combined_text,
-                metadata={"source": "analysis"},
-            )
-            answer = await self.search_orchestrator.query(
-                "Summarize the security posture across code, CI, Kubernetes, and dependencies.",
-                intent="analysis_summary",
-            )
-            return {
-                "answer": answer.answer,
-                "mode": answer.mode,
-                "intent": answer.intent,
-                "citations": answer.citations,
-                "latency_ms": answer.latency_ms,
-            }
-        except Exception as exc:  # noqa: BLE001
-            return {
-                "answer": "RAG summary unavailable.",
-                "error": str(exc),
-            }
+aio_orchestrator = AIOrchestrator()
