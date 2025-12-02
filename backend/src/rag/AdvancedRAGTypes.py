@@ -1,30 +1,23 @@
-from __future__ import annotations
-
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
+from pydantic import BaseModel
 
 
-@dataclass
-class RetrievedChunk:
+class RAGQuery(BaseModel):
+    query: str
+    top_k: int = 8
+    filters: Optional[dict] = None
+
+
+class RAGChunk(BaseModel):
     id: str
     text: str
     score: float
-    metadata: Dict[str, Any]
+    source: str
+    metadata: dict
 
 
-@dataclass
-class RagContext:
-    question: str
-    intent: str
-    retrieved: List[RetrievedChunk]
-    extra: Dict[str, Any]
-
-
-@dataclass
-class RagAnswer:
-    answer: str
-    intent: str
-    mode: str
-    citations: List[Dict[str, Any]]
-    latency_ms: Optional[int] = None
-    error_message: Optional[str] = None
+class RAGResult(BaseModel):
+    query: str
+    chunks: List[RAGChunk]
+    synthesized_answer: str
+    citations: List[dict]
