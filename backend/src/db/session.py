@@ -1,69 +1,37 @@
-from __future__ import annotations
-
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+# backend/src/db/session.py
 
 from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
     create_async_engine,
+    async_sessionmaker,
+    AsyncSession,
 )
-from sqlalchemy.orm import sessionmaker
-
-from db.models import Base
-from utils.config import settings
-
-_engine: AsyncEngine | None = None
-_session_maker: async_sessionmaker[AsyncSession] | None = None
+from sqlalchemy.orm import DeclarativeBase
+from backend.src.utils.config import settings
 
 
-def get_engine() -> AsyncEngine:
-    global _engine
-    if _engine is None:
-        _engine = create_async_engine(
-            settings.database_url,
-            echo=settings.env == "development",
-            future=True,
-        )
-    return _engine
+DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
 
-def get_session_maker() -> async_sessionmaker[AsyncSession]:
-    global _session_maker
-    if _session_maker is None:
-        _session_maker = async_sessionmaker(
-            bind=get_engine(),
-            expire_on_commit=False,
-            autoflush=False,
-        )
-    return _session_maker
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=settings.DEBUG,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True
+)
+
+SessionLocal = async_sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    expire_on_commit=False,
+)
 
 
-@asynccontextmanager
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency:
+class Base(DeclarativeBase):
+    pass
 
-        async def route(db: AsyncSession = Depends(get_db)):
-            result = await db.execute(select(MyModel))
-            return result.scalars().all()
 
-    """
-    session = get_session_maker()()
-    try:
+async def get_db() -> AsyncSession:
+    async with SessionLocal() as session:
         yield session
-        await session.commit()
-    except Exception:
-        await session.rollback()
-        raise
-    finally:
-        await session.close()
-
-
-async def create_all() -> None:
-    """
-    Utility to create all DB tables (for dev/testing).
-    """
-    async with get_engine().begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
