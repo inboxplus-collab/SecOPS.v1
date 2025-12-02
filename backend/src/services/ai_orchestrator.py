@@ -70,7 +70,7 @@ class AIOrchestrator:
             code_summary=code_summary,
             code_issues=code_issues,
             db_summary=db_summary,
-            checks=checks,
+            check_runs=check_runs,
             scanner_findings=scanner_findings,
         )
 
@@ -139,7 +139,7 @@ class AIOrchestrator:
         code_summary: Dict[str, Any],
         code_issues: List[CodeIssue],
         db_summary: Dict[str, Any],
-        checks: List[CheckRunResult],
+        check_runs: List[CheckRunResult],
         scanner_findings: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
@@ -157,10 +157,16 @@ class AIOrchestrator:
         doc_lines.append("Database summary:")
         doc_lines.append(str(db_summary))
 
-        if checks:
+        if check_runs:
             doc_lines.append("Check results:")
-            for chk in checks:
-                doc_lines.append(f"- [{chk.severity}] {chk.title} :: {chk.description}")
+            for run in check_runs:
+                if run.issues:
+                    for issue in run.issues:
+                        doc_lines.append(
+                            f"- [{issue.severity}] {issue.title} :: {issue.description or issue.short_description}"
+                        )
+                elif run.metrics.get("skipped"):
+                    doc_lines.append(f"- [info] Check skipped :: {run.metrics.get('reason', 'unknown')}")
 
         if scanner_findings:
             doc_lines.append("Scanner findings:")
