@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
-from .AdvancedRAGTypes import RagContext, RagAnswer, RetrievedChunk
-from .CitationProcessor import build_citations
-from .llm_client import LLMClient
+from .AdvancedRAGTypes import RagAnswer, RagContext, RetrievedChunk
+from .CitationProcessor import CitationProcessor, build_citations
+from .llm_client import llm_client
 
 
 class RAGSynthesizer:
-    """
-    Responsible for turning retrieved chunks into a final natural language answer.
-    """
+    """Turn retrieved knowledge into a SecOps-focused answer."""
 
-    def __init__(self, llm: LLMClient | None = None) -> None:
-        self._llm = llm or LLMClient()
+    def __init__(self, llm_client=llm_client, settings: Optional[object] = None) -> None:
+        self._llm = llm_client
+        self._citation_processor = CitationProcessor()
+        self._settings = settings
 
     def _build_prompt(self, ctx: RagContext) -> str:
         pieces: List[str] = [
@@ -35,12 +35,30 @@ class RAGSynthesizer:
         )
         return "\n".join(pieces)
 
-    async def synthesize(self, ctx: RagContext) -> RagAnswer:
+    async def synthesize(
+        self,
+        ctx: Optional[RagContext] = None,
+        *,
+        question: str | None = None,
+        retrieved: List[RetrievedChunk] | None = None,
+        intent: str = "general",
+        context: Optional[object] = None,
+    ) -> RagAnswer:
+        if ctx is None:
+            ctx = RagContext(question=question or "", intent=intent, retrieved=retrieved or [], extra={})
+
         prompt = self._build_prompt(ctx)
-        text = await self._llm.generate(prompt)
+        try:
+            text = await self._llm.ask(prompt)
+            error_message = None
+        except Exception as exc:  # noqa: BLE001
+            text = "RAG summary unavailable."
+            error_message = str(exc)
+
         return RagAnswer(
             answer=text,
             intent=ctx.intent,
             mode="rag",
-            citations=build_citations(ctx.retrieved),
+            citations=self._citation_processor.build(ctx.retrieved),
+            error_message=error_message,
         )
