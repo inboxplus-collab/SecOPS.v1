@@ -1,5 +1,18 @@
 import os
+from typing import Optional
+
+from __future__ import annotations
+
+from typing import Dict, Iterable, Optional, Tuple
+
 import httpx
+
+from utils.config import settings as global_settings
+import os
+import httpx
+
+
+class LLMClient:
 from typing import Optional
 
 
@@ -19,6 +32,7 @@ class LLMClient:
             if key:
                 return await self._openai(prompt, model)
         except Exception:
+        except:
             pass
 
         # ========= Gemini =========
@@ -27,10 +41,14 @@ class LLMClient:
             if key:
                 return await self._gemini(prompt)
         except Exception:
+        except:
             pass
 
         # ========= LM Studio =========
         return await self._local(prompt)
+
+    async def _openai(self, prompt, model):
+        import openai
 
 
     async def _openai(self, prompt, model):
@@ -39,6 +57,7 @@ class LLMClient:
 
         resp = await client.chat.completions.create(
             model=model or "gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
             messages=[{"role": "user", "content": prompt}]
         )
         return resp.choices[0].message["content"]
@@ -62,6 +81,7 @@ class LLMClient:
                 json={
                     "model": "local-model",
                     "messages": [{"role": "user", "content": prompt}],
+                },
                 }
             )
             return resp.json()["choices"][0]["message"]["content"]
