@@ -1,0 +1,58 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: secops-prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+      - job_name: 'backend'
+        static_configs:
+          - targets: ['secops-backend:8000']
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secops-prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secops-prometheus
+  template:
+    metadata:
+      labels:
+        app: secops-prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: secops-prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: secops-prometheus
+spec:
+  selector:
+    app: secops-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+{{- end }}

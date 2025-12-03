@@ -171,6 +171,41 @@ export interface PlatformHealthResponse {
 }
 
 /* ============================================================================
+ *  Activity & Admin
+ * ========================================================================== */
+
+export interface ActivityItem {
+  id?: string;
+  title: string;
+  description?: string | null;
+  timestamp: ISODateString;
+  category?: string | null;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+  active: boolean;
+}
+
+export interface AdminTeam {
+  id: string;
+  name: string;
+  members: number;
+  lead?: string | null;
+  active?: boolean;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actor: string;
+  action: string;
+  target?: string | null;
+  timestamp: ISODateString;
+}
+
+/* ============================================================================
  *  Generic API helpers (optional but handy)
  * ========================================================================== */
 

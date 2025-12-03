@@ -1,0 +1,49 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secops-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secops-grafana
+  template:
+    metadata:
+      labels:
+        app: secops-grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_DISABLE_GRAVATAR
+              value: "true"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "false"
+            - name: GF_AUTH_BASIC_ENABLED
+              value: "true"
+            - name: GF_INSTALL_PLUGINS
+              value: ""
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: secops-grafana
+spec:
+  selector:
+    app: secops-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+{{- end }}
