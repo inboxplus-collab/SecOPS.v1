@@ -4,6 +4,11 @@ from functools import lru_cache
 from typing import List, Optional
 
 from pydantic import AnyHttpUrl, Field
+
+try:  # pragma: no cover - import guard for environments without pydantic-settings
+    from pydantic_settings import BaseSettings
+except Exception:  # noqa: BLE001
+    from pydantic import BaseModel as BaseSettings  # type: ignore
 from pydantic_settings import BaseSettings
 
 
@@ -12,7 +17,9 @@ class Settings(BaseSettings):
 
     # ========= GENERAL ==========
     APP_NAME: str = "SecOps AI"
+    APP_VERSION: str = "0.1.0"
     ENV: str = Field(default="development")
+    ENVIRONMENT: str = Field(default="development")
     DEBUG: bool = Field(default=True)
 
     # ========= DATABASE ==========
@@ -23,6 +30,7 @@ class Settings(BaseSettings):
     SUPABASE_ANON_KEY: str = Field(default="anon-key")
     SUPABASE_SERVICE_KEY: str = Field(default="service-key")
     SUPABASE_JWT_SECRET: str = Field(default="test-secret")
+    SUPABASE_KEY: str | None = None
 
     # ========= AUTH ==========
     JWT_ALGORITHM: str = "HS256"
@@ -47,6 +55,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     GROQ_API_KEY: str | None = None
     MISTRAL_API_KEY: str | None = None
+    EMERGENT_LLM_KEY: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
 
     DEFAULT_MODEL: str = "gpt-4o-mini"
     FALLBACK_MODEL: str = "groq/llama3-70b-8192"
@@ -54,6 +65,7 @@ class Settings(BaseSettings):
     # ========= RAG ==========
     VECTOR_DB_URL: str | None = None
     VECTOR_DB_API_KEY: str | None = None
+    VECTOR_STORE_TYPE: str = "mock"
 
     # ========= LOGGING / OBSERVABILITY ==========
     SENTRY_DSN: str | None = None
@@ -63,6 +75,13 @@ class Settings(BaseSettings):
     # ========= KUBERNETES ==========
     K8S_IN_CLUSTER: bool = False
     K8S_KUBECONFIG: str | None = None
+
+    # ========= BILLING ==========
+    STRIPE_SECRET_KEY: str | None = None
+    STRIPE_PRICE_PRO: str | None = None
+    STRIPE_PRICE_ENTERPRISE: str | None = None
+    LEMONSQUEEZY_API_KEY: str | None = None
+    FRONTEND_URL: str = Field(default="http://localhost:3000")
 
     class Config:
         env_file = ".env"

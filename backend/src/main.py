@@ -23,13 +23,13 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 # Routers
-from api.routes import platform, rag  # core routes used in tests
+from api.routes import platform, rag, docs_chat  # core routes used in tests
 
 try:  # Optional routes may rely on heavyweight dependencies
-    from api.routes import analysis, integrations, admin, auth  # type: ignore[attr-defined]
+    from api.routes import analysis, integrations, admin, auth, billing  # type: ignore[attr-defined]
 except Exception as exc:  # noqa: BLE001
     logging.getLogger(__name__).warning("Optional routers could not be loaded: %s", exc)
-    analysis = integrations = admin = auth = None
+    analysis = integrations = admin = auth = billing = None
 
 try:  # Optional SSO routers
     from integrations.sso import azure_ad as azure_sso, google as google_sso, okta as okta_sso
@@ -184,11 +184,14 @@ if auth:
 if analysis:
     app.include_router(analysis.router, prefix="/api", tags=["analysis"])
 app.include_router(rag.router)
+app.include_router(docs_chat.router)
 app.include_router(platform.router)
 if integrations:
     app.include_router(integrations.router, prefix="/api/integrations", tags=["integrations"])
 if admin:
     app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+if billing:
+    app.include_router(billing.router)
 if google_sso:
     app.include_router(google_sso.router)
 if okta_sso:
