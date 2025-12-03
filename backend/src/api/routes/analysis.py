@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from backend.src.services.cicd_log_analyzer import cicd_log_analyzer
 from services.ai_orchestrator import AIOrchestrator, AnalysisRequest
 
 logger = logging.getLogger(__name__)
@@ -67,3 +68,45 @@ async def run_analysis(request: AnalysisRunRequest) -> AnalysisRunResponse:
         )
 
     return AnalysisRunResponse(**result)
+
+
+@router.get("/ci/github")
+async def analyze_github_ci(
+    run_id: int | None = Query(None, description="Optional specific run id"),
+    branch: str | None = Query(None, description="Optional branch filter"),
+):
+    """
+    Analyze a failing GitHub Actions run (or latest failed run on a branch).
+    """
+
+    return await cicd_log_analyzer.analyze_github_run(run_id=run_id, branch=branch)
+
+
+@router.post("/ci/github/auto-fix")
+async def auto_fix_github_workflow(
+    workflow_path: str = Query(
+        ..., description="Path to workflow file, e.g. .github/workflows/ci.yml"
+    ),
+    run_id: int | None = Query(None),
+    branch: str | None = Query(None),
+):
+    """
+    Automatically propose and apply a fixed GitHub Actions workflow file.
+    """
+
+    return await cicd_log_analyzer.auto_fix_github_workflow(
+        workflow_path=workflow_path,
+        run_id=run_id,
+        branch=branch,
+    )
+
+
+@router.get("/ci/jenkins")
+async def analyze_jenkins_ci(
+    job_name: str = Query(..., description="Jenkins job name")
+):
+    """
+    Analyze the latest failed Jenkins build for a job.
+    """
+
+    return await cicd_log_analyzer.analyze_jenkins_job(job_name)

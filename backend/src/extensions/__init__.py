@@ -15,4 +15,6 @@ Included integrations:
 - `agent0_adapter`: keeps data structures compatible with the Agent0 project
   (https://github.com/aiming-lab/Agent0) so you can later introduce their
   runtime without refactoring business logic.
+- `auto_updater`: houses the AI-driven auto patcher that can analyze code,
+  synthesize diffs, and push validated fixes back to the repository.
 """
