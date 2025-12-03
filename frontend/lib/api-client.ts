@@ -6,6 +6,10 @@ import type {
   IssuesTrendPoint,
   CheckStatusSlice,
   CostBreakdownItem,
+  ActivityItem,
+  AdminUser,
+  AdminTeam,
+  AuditLogEntry,
 } from "./types";
 
 const API_BASE_URL =
@@ -186,3 +190,30 @@ export async function runAnalysis(
     },
   });
 }
+
+export async function fetchActivity(options?: RequestOptions) {
+  return request<ActivityItem[]>("/api/activity", options);
+}
+
+export async function fetchAdminUsers(options?: RequestOptions) {
+  return request<AdminUser[]>("/api/admin/users", options);
+}
+
+export async function fetchAdminTeams(options?: RequestOptions) {
+  return request<AdminTeam[]>("/api/admin/teams", options);
+}
+
+export async function fetchAuditLogs(options?: RequestOptions) {
+  return request<AuditLogEntry[]>("/api/admin/audit", options);
+}
+
+export const api = {
+  activity: {
+    list: fetchActivity,
+  },
+  admin: {
+    users: fetchAdminUsers,
+    teams: fetchAdminTeams,
+    audit: fetchAuditLogs,
+  },
+};
