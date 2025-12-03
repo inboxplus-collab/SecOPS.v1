@@ -1,123 +1,140 @@
+"""
+Kubernetes misconfiguration checks.
+
+Catches:
+- Missing CPU/memory requests/limits
+- No liveness/readiness probes
+- Privileged containers / runAsRoot
+- No pod securityContext
+"""
+
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, List
+from typing import Dict, List
 
-from api.schemas.issues import IssueSeverity, IssueStatus, IssueLocation
-from .base import BaseCheck, CheckContext, CheckRunResult, LoggerLike, NullLogger
-from integrations.k8s.client import get_k8s_apps_api, get_k8s_core_api
+from backend.src.core.checks.base import CheckResult, Severity
+from backend.src.integrations.k8s.collectors import collect_workloads
 
 
-class K8sMisconfigCheck(BaseCheck):
-    id = "k8s_misconfig"
-    name = "Kubernetes misconfiguration"
-    description = "Checks basic K8s best practices: resource limits, public services, etc."
+def _has_resources(container: Dict) -> bool:
+    res = container.get("resources") or {}
+    return bool(res.get("limits") or res.get("requests"))
 
-    def __init__(self) -> None:
-        super().__init__(default_severity=IssueSeverity.medium)
 
-    async def run(
-        self, context: CheckContext, logger: LoggerLike | None = None
-    ) -> CheckRunResult:
-        logger = logger or NullLogger()
-        issues: List[Any] = []
-        errors: List[str] = []
+def _has_probes(container: Dict) -> bool:
+    return bool(container.get("livenessProbe") or container.get("readinessProbe"))
 
-        try:
-            apps_api = get_k8s_apps_api()
-            core_api = get_k8s_core_api()
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("K8sMisconfigCheck skipped: %s", exc)
-            return CheckRunResult(
-                issues=[],
-                metrics={"skipped": True, "reason": "k8s_client_error"},
-                errors=[str(exc)],
+
+def _is_privileged(container: Dict, pod_sec: Dict) -> bool:
+    c_sec = container.get("securityContext") or {}
+    if c_sec.get("privileged") is True:
+        return True
+
+    # runAsUser 0 is effectively root
+    run_as_user = c_sec.get("runAsUser") or pod_sec.get("runAsUser")
+    if run_as_user == 0:
+        return True
+
+    return False
+
+
+def run_k8s_checks() -> List[CheckResult]:
+    workloads = collect_workloads()
+    results: List[CheckResult] = []
+
+    for wl in workloads:
+        meta = wl["metadata"]
+        spec = wl["spec"]
+        pod_sec = spec.get("podSecurityContext") or {}
+        ns = meta["namespace"]
+        name = meta["name"]
+        kind = wl["kind"]
+
+        resource_id = f"{kind}/{ns}/{name}"
+
+        # === Check 1: pod-level security context missing ===
+        if not pod_sec:
+            results.append(
+                CheckResult(
+                    check_id="k8s_pod_security_context_missing",
+                    title="Pod securityContext is missing",
+                    severity=Severity.medium,
+                    description=(
+                        f"{resource_id} has no pod-level securityContext. "
+                        "This increases risk of privilege escalation and "
+                        "inconsistent security posture."
+                    ),
+                    resource=resource_id,
+                    remediation=(
+                        "Define a pod-level `securityContext` with runAsNonRoot=true, "
+                        "seccompProfile, and fsGroup where appropriate."
+                    ),
+                    metadata={"namespace": ns, "kind": kind},
+                )
             )
 
-        try:
-            deployments = apps_api.list_deployment_for_all_namespaces().items
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("K8sMisconfigCheck could not list deployments: %s", exc)
-            deployments = []
-            errors.append(str(exc))
+        for c in spec.get("containers", []):
+            cname = c["name"]
+            cres_id = f"{resource_id}/container/{cname}"
 
-        for dep in deployments:
-            ns = dep.metadata.namespace
-            name = dep.metadata.name
-            for c in dep.spec.template.spec.containers:
-                if not (c.resources and c.resources.limits):
-                    location = IssueLocation(
-                        kind="k8s",
-                        namespace=ns,
-                        resource_kind="Deployment",
-                        resource_name=name,
-                        metadata={"container": c.name},
-                    )
-                    issues.append(
-                        self.build_issue(
-                            id=f"{context.org_id}:{ns}:{name}:{c.name}:limits",
-                            org_id=context.org_id or "unknown-org",
-                            title=f"K8s deployment without resource limits: {ns}/{name}",
-                            severity=IssueSeverity.medium,
-                            status=IssueStatus.open,
-                            service=name,
-                            category="k8s",
-                            tags=["k8s", "resources", "hygiene"],
-                            location=location,
-                            source="k8s",
-                            short_description="Container has no resource limits set.",
-                            description="Container has no resource limits set. This can lead to noisy neighbors and instability.",
-                            root_cause="Resource limits were omitted from the deployment spec.",
-                            impact="Pods may consume excessive resources and disrupt cluster stability.",
-                            proposed_fix="Define CPU/memory requests and limits for each container.",
-                            precautions="Validate limits in staging before rollout.",
-                            references=[],
-                            extra={},
-                        )
-                    )
-
-        try:
-            services = core_api.list_service_for_all_namespaces().items
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("K8sMisconfigCheck could not list services: %s", exc)
-            services = []
-            errors.append(str(exc))
-
-        for svc in services:
-            if svc.spec.type == "LoadBalancer" and not svc.spec.load_balancer_source_ranges:
-                location = IssueLocation(
-                    kind="k8s",
-                    namespace=svc.metadata.namespace,
-                    resource_kind="Service",
-                    resource_name=svc.metadata.name,
-                )
-                issues.append(
-                    self.build_issue(
-                        id=f"{context.org_id}:{svc.metadata.namespace}:{svc.metadata.name}:public",
-                        org_id=context.org_id or "unknown-org",
-                        title=f"Public LoadBalancer service: {svc.metadata.namespace}/{svc.metadata.name}",
-                        severity=IssueSeverity.high,
-                        status=IssueStatus.open,
-                        service=svc.metadata.name,
-                        category="k8s",
-                        tags=["k8s", "network", "exposure"],
-                        location=location,
-                        source="k8s",
-                        short_description="Service is exposed via public LoadBalancer.",
-                        description="Service of type LoadBalancer without source ranges can be exposed to the whole internet.",
-                        root_cause="Service type set to LoadBalancer without source ranges.",
-                        impact="Workloads may be reachable from untrusted networks.",
-                        proposed_fix="Restrict source ranges or use ClusterIP/Ingress based exposure.",
-                        precautions="Ensure ingress paths remain functional after changes.",
-                        references=[],
-                        extra={},
+            # === Check 2: missing requests/limits ===
+            if not _has_resources(c):
+                results.append(
+                    CheckResult(
+                        check_id="k8s_container_resources_missing",
+                        title="Container resources (requests/limits) not set",
+                        severity=Severity.medium,
+                        description=(
+                            f"{cres_id} has no CPU/memory requests or limits. "
+                            "This can lead to noisy-neighbor problems or OOM kills."
+                        ),
+                        resource=cres_id,
+                        remediation=(
+                            "Set `resources.requests` and `resources.limits` for "
+                            "CPU and memory to ensure fair scheduling and stability."
+                        ),
+                        metadata={"namespace": ns, "kind": kind},
                     )
                 )
 
-        metrics = {
-            "deployments_scanned": len(deployments) if 'deployments' in locals() else 0,
-            "services_scanned": len(services) if 'services' in locals() else 0,
-            "issues_found": len(issues),
-        }
+            # === Check 3: no health probes ===
+            if not _has_probes(c):
+                results.append(
+                    CheckResult(
+                        check_id="k8s_container_probes_missing",
+                        title="Liveness/Readiness probes not configured",
+                        severity=Severity.medium,
+                        description=(
+                            f"{cres_id} has no liveness or readiness probes. "
+                            "Kubernetes will not detect failures or slow startups properly."
+                        ),
+                        resource=cres_id,
+                        remediation=(
+                            "Configure appropriate `livenessProbe` and `readinessProbe` "
+                            "for the container, e.g. HTTP or TCP checks."
+                        ),
+                        metadata={"namespace": ns, "kind": kind},
+                    )
+                )
 
-        return CheckRunResult(issues=issues, metrics=metrics, errors=errors)
+            # === Check 4: privileged / root ===
+            if _is_privileged(c, pod_sec):
+                results.append(
+                    CheckResult(
+                        check_id="k8s_container_privileged",
+                        title="Container runs privileged or as root",
+                        severity=Severity.high,
+                        description=(
+                            f"{cres_id} is running as privileged or as root user. "
+                            "This significantly increases the blast radius if compromised."
+                        ),
+                        resource=cres_id,
+                        remediation=(
+                            "Remove `privileged: true`, set `runAsNonRoot: true`, "
+                            "and use `runAsUser` with a non-zero UID."
+                        ),
+                        metadata={"namespace": ns, "kind": kind},
+                    )
+                )
+
+    return results

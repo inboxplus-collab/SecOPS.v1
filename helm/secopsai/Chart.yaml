@@ -1,0 +1,5 @@
+apiVersion: v2
+name: secopsai
+description: SecOpsAI Enterprise Autonomous DevSecOps Platform
+type: application
+version: 1.0.0

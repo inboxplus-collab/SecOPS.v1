@@ -31,6 +31,12 @@ except Exception as exc:  # noqa: BLE001
     logging.getLogger(__name__).warning("Optional routers could not be loaded: %s", exc)
     analysis = integrations = admin = auth = billing = None
 
+try:  # Optional SSO routers
+    from integrations.sso import azure_ad as azure_sso, google as google_sso, okta as okta_sso
+except Exception as exc:  # noqa: BLE001
+    logging.getLogger(__name__).warning("SSO routers could not be loaded: %s", exc)
+    azure_sso = google_sso = okta_sso = None
+
 from utils.config import validate_runtime_config
 
 logger = logging.getLogger(__name__)
@@ -186,6 +192,12 @@ if admin:
     app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 if billing:
     app.include_router(billing.router)
+if google_sso:
+    app.include_router(google_sso.router)
+if okta_sso:
+    app.include_router(okta_sso.router)
+if azure_sso:
+    app.include_router(azure_sso.router)
 
 
 # ---------------------------------------------------------------------------

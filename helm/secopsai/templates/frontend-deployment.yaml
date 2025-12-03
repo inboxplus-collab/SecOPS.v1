@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secops-frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: secops-frontend
+  template:
+    metadata:
+      labels:
+        app: secops-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: {{ .Values.frontend.image }}
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: https://{{ .Values.domain }}/api
+          ports:
+            - containerPort: 3000

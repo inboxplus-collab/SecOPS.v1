@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secops-backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app: secops-backend
+  template:
+    metadata:
+      labels:
+        app: secops-backend
+    spec:
+      containers:
+        - name: backend
+          image: {{ .Values.backend.image }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: secops-secrets
+                  key: DATABASE_URL
+            - name: SUPABASE_URL
+              value: {{ .Values.supabase.url }}
+            - name: SUPABASE_ANON_KEY
+              value: {{ .Values.supabase.anon_key }}
+            - name: REDIS_URL
+              value: redis://secops-redis:6379/0
+          ports:
+            - containerPort: 8000

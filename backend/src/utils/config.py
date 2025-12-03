@@ -1,5 +1,3 @@
-# backend/src/utils/config.py
-
 from __future__ import annotations
 
 from functools import lru_cache
@@ -11,6 +9,7 @@ try:  # pragma: no cover - import guard for environments without pydantic-settin
     from pydantic_settings import BaseSettings
 except Exception:  # noqa: BLE001
     from pydantic import BaseModel as BaseSettings  # type: ignore
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -36,6 +35,16 @@ class Settings(BaseSettings):
     # ========= AUTH ==========
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
+
+    # ========= SSO / OIDC ==========
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    OKTA_CLIENT_ID: Optional[str] = None
+    OKTA_CLIENT_SECRET: Optional[str] = None
+    OKTA_ISSUER_URL: Optional[str] = None
+    AZURE_AD_CLIENT_ID: Optional[str] = None
+    AZURE_AD_CLIENT_SECRET: Optional[str] = None
+    AZURE_AD_TENANT_ID: Optional[str] = None
 
     # ========= GITHUB ==========
     GITHUB_APP_ID: str | None = None

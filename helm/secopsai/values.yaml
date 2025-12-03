@@ -1,0 +1,22 @@
+domain: "secops.yourcompany.com"
+
+backend:
+  image: secopsai/backend:latest
+  replicas: 3
+
+frontend:
+  image: secopsai/frontend:latest
+  replicas: 2
+
+postgres:
+  password: "supersecurepassword"
+
+supabase:
+  url: "https://xyzcompany.supabase.co"
+  anon_key: "YOUR_PUBLIC_ANON_KEY"
+
+redis:
+  enabled: true
+
+prometheus:
+  enabled: true

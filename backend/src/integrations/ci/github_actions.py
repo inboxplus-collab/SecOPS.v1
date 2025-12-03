@@ -1,80 +1,111 @@
+# backend/src/integrations/ci/github_actions.py
+
+"""
+GitHub Actions CI integration.
+
+Capabilities:
+- List workflow runs
+- Find latest failed workflow run
+- Fetch high-level job/step logs for a run
+
+Relies on:
+- GITHUB_TOKEN (PAT or fine-grained token)
+- TARGET_REPO (e.g. "inboxplus-collab/SecOPS.v1")
+"""
+
 from __future__ import annotations
 
-import os
-import os
-from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
+import os
 
 
-@dataclass
-class WorkflowFile:
-    id: int
-    name: str
-    path: str
-    raw_yaml: str
+GITHUB_API = "https://api.github.com"
 
 
 class GitHubActionsClient:
-    """
-    Minimal GitHub Actions client used for CI hardening checks.
-    """
+    def __init__(self):
+        self.token = os.getenv("GITHUB_TOKEN")
+        self.repo = os.getenv("TARGET_REPO")
 
-    def __init__(self, token: str, base_url: str = "https://api.github.com") -> None:
-        self._token = token
-        self._base_url = base_url
-        self._client = httpx.AsyncClient(
-            base_url=self._base_url,
-            headers={
-                "Authorization": f"Bearer {self._token}",
-                "Accept": "application/vnd.github+json",
-            },
-            timeout=20.0,
-        )
+        if not self.repo:
+            raise RuntimeError("TARGET_REPO env var is required (e.g. 'owner/repo').")
 
-    @classmethod
-    def from_env(cls) -> "GitHubActionsClient":
-        token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN") or ""
-        if not token:
-            raise RuntimeError("GITHUB_TOKEN not configured in environment")
-        return cls(token=token)
+        self.headers = {
+            "Accept": "application/vnd.github+json",
+        }
+        if self.token:
+            self.headers["Authorization"] = f"Bearer {self.token}"
 
-    async def list_workflows(self, repo_full_name: str) -> List[WorkflowFile]:
+    async def list_workflow_runs(
+        self,
+        branch: Optional[str] = None,
+        status: Optional[str] = None,
+        per_page: int = 10,
+    ) -> List[Dict[str, Any]]:
         """
-        List workflow YAMLs for a repository.
+        List workflow runs for the repo.
 
-        repo_full_name: "owner/repo"
+        status can be: "success", "failure", "cancelled", etc.
         """
-        owner, repo = repo_full_name.split("/", 1)
-        # First get workflow metadata
-        r = await self._client.get(f"/repos/{owner}/{repo}/actions/workflows")
-        r.raise_for_status()
-        data = r.json()
-        workflows = data.get("workflows", [])
+        params: Dict[str, Any] = {"per_page": per_page}
+        if branch:
+            params["branch"] = branch
+        if status:
+            params["status"] = status
 
-        files: List[WorkflowFile] = []
-        for wf in workflows:
-            path = wf.get("path")
-            if not path:
-                continue
-            content_resp = await self._client.get(f"/repos/{owner}/{repo}/contents/{path}")
-            content_resp.raise_for_status()
-            content_data = content_resp.json()
-            # GitHub returns base64 for file content; we keep it simple:
-            import base64
+        url = f"{GITHUB_API}/repos/{self.repo}/actions/runs"
 
-            raw = base64.b64decode(content_data.get("content", "")).decode("utf-8", errors="ignore")
-            files.append(
-                WorkflowFile(
-                    id=wf.get("id"),
-                    name=wf.get("name"),
-                    path=path,
-                    raw_yaml=raw,
-                )
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url, headers=self.headers, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+
+        return data.get("workflow_runs", [])
+
+    async def get_latest_failed_run(
+        self, branch: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        runs = await self.list_workflow_runs(branch=branch, status="failure", per_page=5)
+        if not runs:
+            return None
+        # Already sorted newest-first by GitHub
+        return runs[0]
+
+    async def get_run_jobs(self, run_id: int) -> List[Dict[str, Any]]:
+        """
+        Fetch jobs and steps for a workflow run.
+        This is much lighter than downloading raw logs tarball.
+        """
+        url = f"{GITHUB_API}/repos/{self.repo}/actions/runs/{run_id}/jobs"
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.get(url, headers=self.headers)
+            resp.raise_for_status()
+            data = resp.json()
+
+        return data.get("jobs", [])
+
+    async def summarize_run_logs(self, run_id: int) -> str:
+        """
+        Build a textual summary of jobs/steps for feeding into the LLM.
+        """
+        jobs = await self.get_run_jobs(run_id)
+        lines: List[str] = []
+
+        for job in jobs:
+            lines.append(
+                f"JOB: {job.get('name')} (id={job.get('id')}) "
+                f"status={job.get('status')} conclusion={job.get('conclusion')}"
             )
+            for step in job.get("steps", []):
+                lines.append(
+                    f"  STEP: {step.get('name')} "
+                    f"status={step.get('status')} conclusion={step.get('conclusion')}"
+                )
 
-        return files
+        return "\n".join(lines)
 
-    async def close(self) -> None:
-        await self._client.aclose()
+
+github_actions_client = GitHubActionsClient()

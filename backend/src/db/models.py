@@ -62,8 +62,9 @@ class Base(DeclarativeBase):
 
 try:
     from core.issues.models import Issue  # noqa: F401
+    from core.audit.models import AuditLog  # noqa: F401
 except Exception:
     # In early setup or some tests the module may not be importable yet.
-    Issue: Any  # type: ignore[assignment]
+    Issue = AuditLog = Any  # type: ignore[assignment]
 
 __all__ = ["Base", "metadata_obj"]
