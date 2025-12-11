@@ -87,3 +87,4 @@ docker compose -f infra/docker-compose.yaml up --build
 - Transformer and MoE background: `docs/gpt-architecture.md`
 - RAG and agentic integration blueprint: `docs/rag-agent-integration.md`
 - Fine-tuning, agent blueprint, and alignment playbook: `docs/llm-finetuning-and-agents.md`
+- High-throughput serving and deployment patterns with vLLM: `docs/vllm_integration.md`

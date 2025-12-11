@@ -20,8 +20,8 @@ spec:
     spec:
       containers:
         - name: secops-backend
-          # TODO: replace with your real registry image
-          image: YOUR_REGISTRY/secops-backend:latest
+          # Image built from infra/docker/backend.Dockerfile
+          image: secops-backend:latest
           imagePullPolicy: IfNotPresent
 
           ports:

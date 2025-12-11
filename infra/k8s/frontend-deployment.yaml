@@ -20,8 +20,8 @@ spec:
     spec:
       containers:
         - name: secops-frontend
-          # TODO: replace with your built image
-          image: YOUR_REGISTRY/secops-frontend:latest
+          # Image built from infra/docker/frontend.Dockerfile
+          image: secops-frontend:latest
           imagePullPolicy: IfNotPresent
 
           ports:
