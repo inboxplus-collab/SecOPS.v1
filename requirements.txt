@@ -1,3 +1,4 @@
+# Consolidated requirements for Project A (TensorFlow model) and Project B (FastAPI app)
 # Combined dependency set for Project A (model) and Project B (app/framework).
 # GPU users should install the matching CUDA build of torch (e.g., +cu121) from
 # https://download.pytorch.org/whl/torch/ before installing the remaining packages.
@@ -19,6 +20,17 @@ python-jose[cryptography]==3.3.0
 Authlib==1.3.1
 stripe==10.12.0
 kubernetes==29.0.0
+transformers==4.44.2
+datasets==2.21.0
+accelerate==0.33.0
+pytest==8.2.0
+pytest-asyncio==0.23.5
+
+# Project A specific (TensorFlow-based) dependencies
+# TensorFlow 2.15.0 provides stable CPU builds; GPU users can switch to tensorflow-gpu==2.15.0
+tensorflow==2.15.0
+numpy>=1.26,<2
+pillow==10.4.0
 pytest==8.2.0
 pytest-asyncio==0.23.5
 
