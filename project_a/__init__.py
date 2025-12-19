@@ -1,3 +1,4 @@
+"""Project A minimal inference package."""
 """
 Project A package exposing model loading and inference utilities.
 """
