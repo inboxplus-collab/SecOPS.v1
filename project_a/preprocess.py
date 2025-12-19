@@ -1,14 +1,17 @@
+"""Image preprocessing helpers for Project A."""
+from __future__ import annotations
+
 import base64
 import io
 import json
-from pathlib import Path
+import os
 from typing import Tuple
 
 import numpy as np
 from PIL import Image
 
-BASE_DIR = Path(__file__).resolve().parent
-CONFIG_PATH = BASE_DIR / "config" / "model_config.json"
+BASE_DIR = os.path.dirname(__file__)
+CONFIG_PATH = os.path.join(BASE_DIR, "config", "model_config.json")
 
 
 def load_config() -> dict:
