@@ -1,20 +1,21 @@
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-
-from pydantic import BaseModel
-
+from __future__ import annotations
 
 from typing import List, Optional
+
 from pydantic import BaseModel
 
 
 class RAGQuery(BaseModel):
+    """Simple query container for the RAG pipeline."""
+
     query: str
     top_k: int = 8
     filters: Optional[dict] = None
 
 
 class RAGChunk(BaseModel):
+    """Normalized chunk returned from retrieval."""
+
     id: str
     text: str
     score: float
@@ -23,28 +24,8 @@ class RAGChunk(BaseModel):
 
 
 class RAGResult(BaseModel):
-    query: str
-    chunks: List[RAGChunk]
-    synthesized_answer: str
-    citations: List[dict]
+    """Final synthesized result with citations."""
 
-
-# ---------------------------------------------------------------------------
-# Legacy compatibility types (kept to avoid breaking callers while RAG API
-# migrates to the new RAGQuery/RAGChunk schema).
-# ---------------------------------------------------------------------------
-
-
-
-class RAGChunk(BaseModel):
-    id: str
-    text: str
-    score: float
-    source: str
-    metadata: dict
-
-
-class RAGResult(BaseModel):
     query: str
     chunks: List[RAGChunk]
     synthesized_answer: str

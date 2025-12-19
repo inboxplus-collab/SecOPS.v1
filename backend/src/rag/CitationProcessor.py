@@ -1,58 +1,30 @@
+from __future__ import annotations
+
 from typing import List
 
 from rag.AdvancedRAGTypes import RAGChunk
-from backend.src.rag.AdvancedRAGTypes import RAGChunk
+
 
 class CitationProcessor:
+    """Utilities for ranking and formatting retrieved chunks."""
 
     def merge_and_rank(self, chunks: List[RAGChunk]) -> List[RAGChunk]:
-        """
-        Removes duplicates, ranks by score, merges similar data.
-        """
-        seen = set()
-        unique_chunks = []
+        seen: set[str] = set()
+        unique_chunks: List[RAGChunk] = []
 
-        for c in sorted(chunks, key=lambda x: x.score, reverse=True):
-            if c.text.strip() not in seen:
-                unique_chunks.append(c)
-                seen.add(c.text.strip())
+        for chunk in sorted(chunks, key=lambda c: c.score, reverse=True):
+            text = chunk.text.strip()
+            if text in seen:
+                continue
+            seen.add(text)
+            unique_chunks.append(chunk)
 
         return unique_chunks[:10]
 
-    def format_citations(self, chunks: List[RAGChunk]):
-        """
-        Format citations for final answer.
-        """
+    def format_citations(self, chunks: List[RAGChunk]) -> List[dict]:
         return [
-            {"source": c.source, "score": round(c.score, 3), "preview": c.text[:200]}
-            for c in chunks
-        ]
-
-
-citation_processor = CitationProcessor()
-class CitationProcessor:
-
-    def merge_and_rank(self, chunks: List[RAGChunk]) -> List[RAGChunk]:
-        """
-        Removes duplicates, ranks by score, merges similar data.
-        """
-        seen = set()
-        unique_chunks = []
-
-        for c in sorted(chunks, key=lambda x: x.score, reverse=True):
-            if c.text.strip() not in seen:
-                unique_chunks.append(c)
-                seen.add(c.text.strip())
-
-        return unique_chunks[:10]
-
-    def format_citations(self, chunks: List[RAGChunk]):
-        """
-        Format citations for final answer.
-        """
-        return [
-            {"source": c.source, "score": round(c.score, 3), "preview": c.text[:200]}
-            for c in chunks
+            {"source": chunk.source, "score": round(chunk.score, 3), "preview": chunk.text[:200]}
+            for chunk in chunks
         ]
 
 

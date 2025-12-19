@@ -1,15 +1,19 @@
-# backend/src/api/routes/platform.py
-
-from __future__ import annotations
-
 import logging
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, Query
 
 from api.deps import get_current_user
-from backend.src.extensions.k8s_healer.healer import k8s_healer
-from extensions.db_repair import db_repair_agent
+
+try:  # Optional runtime dependencies
+    from extensions.k8s_healer.healer import k8s_healer
+except Exception:  # noqa: BLE001
+    k8s_healer = None
+
+try:
+    from extensions.db_repair import db_repair_agent
+except Exception:  # noqa: BLE001
+    db_repair_agent = None
 
 logger = logging.getLogger(__name__)
 
@@ -41,22 +45,20 @@ async def k8s_heal(
     ),
     current_user: Any = Depends(get_current_user),
 ) -> Dict[str, Any]:
-    """
-    Run Kubernetes misconfiguration analysis and optionally apply auto-heal patches.
+    if not k8s_healer:
+        return {"patched": False, "reason": "k8s healer unavailable"}
 
-    - If apply=false → returns issues + suggested patches (does NOT change cluster)
-    - If apply=true  → applies patches via Kubernetes API
-    """
-
-    # current_user is resolved for auth; unused otherwise
     _ = current_user
     result = await k8s_healer.heal(apply=apply)
+    return result
+
+
 @router.post("/database/repair", summary="Run DB auto-repair checks")
 async def repair_db(autofix: bool = False, current_user: Any = Depends(get_current_user)) -> Dict[str, Any]:
-    """Run database health checks and optionally apply safe fixes."""
+    if not db_repair_agent:
+        return {"patched": False, "reason": "db repair unavailable"}
 
     result = await db_repair_agent.run_full_check()
-
     if autofix:
         await db_repair_agent.apply_patches(result["patches"])
 
