@@ -2,53 +2,45 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from backend.src.integrations.ci.github_actions import github_actions_client
-from backend.src.integrations.ci.jenkins import jenkins_client
-from backend.src.rag.llm_client import llm_client
-from backend.src.extensions.auto_updater.repo_client import repo_client
+from integrations.ci.github_actions import GitHubActionsClient
+from integrations.ci.jenkins import jenkins_client
+from rag.llm_client import llm_client
+from extensions.auto_updater.repo_client import repo_client
 
 
 class CICDLogAnalyzerService:
-    """
-    High-level CI/CD log analyzer.
-    - Explains why pipelines failed
-    - Suggests config/code fixes
-    - Can auto-patch GitHub workflow files
-    """
+    """High-level CI/CD log analyzer with GitHub Actions and Jenkins helpers."""
 
-    # ========= GITHUB ACTIONS =========
+    def __init__(self) -> None:
+        self._github_client: GitHubActionsClient | None = None
+
+    def _get_github_client(self) -> GitHubActionsClient:
+        if self._github_client is None:
+            self._github_client = GitHubActionsClient.from_env()
+        return self._github_client
 
     async def analyze_github_run(
         self,
         run_id: Optional[int] = None,
         branch: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Analyze a specific run (if run_id given) or the latest failed run on a branch.
-        Returns a structured analysis.
-        """
+        client = self._get_github_client()
 
-        # find run
         run = None
         if run_id is not None:
-            # minimal fetch – re-use list_workflow_runs is okay for simplicity
-            runs = await github_actions_client.list_workflow_runs(
-                branch=branch, per_page=20
-            )
-            for r in runs:
-                if r["id"] == run_id:
-                    run = r
+            runs = await client.list_workflow_runs(branch=branch, per_page=20)
+            for candidate in runs:
+                if candidate.get("id") == run_id:
+                    run = candidate
                     break
         else:
-            run = await github_actions_client.get_latest_failed_run(branch=branch)
+            run = await client.get_latest_failed_run(branch=branch)
 
         if not run:
             return {"found": False, "reason": "No failed workflow run found."}
 
-        run_id = run["id"]
-        logs_summary = await github_actions_client.summarize_run_logs(run_id)
+        logs_summary = await client.summarize_run_logs(run["id"])
 
-        # Ask LLM to analyze failure
         prompt = f"""
 You are an expert CI/CD engineer.
 
@@ -84,24 +76,17 @@ Return your answer in a structured, human-readable format.
         run_id: Optional[int] = None,
         branch: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Fetches failing run logs + current workflow YAML,
-        asks LLM to propose a fixed workflow YAML,
-        and writes the new version back to the repo.
-        """
-
         base_analysis = await self.analyze_github_run(run_id=run_id, branch=branch)
         if not base_analysis.get("found"):
             return {**base_analysis, "patched": False}
 
-        # fetch workflow file from repo
         try:
             current_yaml, sha = await repo_client.get_file(workflow_path)
-        except Exception as e:
+        except Exception as exc:  # noqa: BLE001
             return {
                 "found": True,
                 "patched": False,
-                "error": f"Failed to fetch workflow file: {e}",
+                "error": f"Failed to fetch workflow file: {exc}",
                 "analysis": base_analysis.get("analysis"),
             }
 
@@ -131,7 +116,6 @@ Output ONLY the updated YAML, no explanation, no markdown, no backticks.
 
         fixed_yaml = await llm_client.ask(prompt)
 
-        # update the file in repo
         await repo_client.push_file(
             workflow_path,
             fixed_yaml,
@@ -146,20 +130,11 @@ Output ONLY the updated YAML, no explanation, no markdown, no backticks.
             "analysis": base_analysis.get("analysis"),
         }
 
-    # ========= JENKINS =========
-
-    async def analyze_jenkins_job(
-        self,
-        job_name: str,
-    ) -> Dict[str, Any]:
-        """
-        Analyze the latest failed Jenkins build for a given job.
-        """
-
+    async def analyze_jenkins_job(self, job_name: str) -> Dict[str, Any]:
         try:
             build = await jenkins_client.get_latest_failed_build(job_name)
-        except RuntimeError as e:
-            return {"found": False, "reason": str(e)}
+        except RuntimeError as exc:
+            return {"found": False, "reason": str(exc)}
 
         if not build:
             return {"found": False, "reason": "No failed builds found for this job."}

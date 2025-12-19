@@ -1,23 +1,23 @@
+from __future__ import annotations
+
 import os
 from typing import List
 
 import httpx
 
 from rag.AdvancedRAGTypes import RAGChunk
-import httpx
-from typing import List
-from backend.src.rag.AdvancedRAGTypes import RAGChunk
+
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
 
 class VectorStore:
+    """Lightweight Supabase vector store wrapper with safe fallbacks."""
 
     async def search(self, query: str, top_k: int = 8) -> List[RAGChunk]:
-        """
-        Uses Supabase pgvector RPC function `match_documents`.
-        """
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            return []
 
         url = f"{SUPABASE_URL}/rest/v1/rpc/match_documents"
         headers = {
@@ -31,50 +31,22 @@ class VectorStore:
                 headers=headers,
                 json={"query_text": query, "match_count": top_k},
             )
-
+            resp.raise_for_status()
             data = resp.json()
 
-        chunks = [
+        return [
             RAGChunk(
-                id=str(i["id"]),
-                text=i["content"],
-                score=float(i["similarity"]),
-                source=i.get("source", "unknown"),
-                metadata=i.get("metadata", {}),
+                id=str(row.get("id", i)),
+                text=row.get("content", ""),
+                score=float(row.get("similarity", 0.0)),
+                source=row.get("source", "unknown"),
+                metadata=row.get("metadata", {}),
             )
-            for i in data
+            for i, row in enumerate(data)
         ]
 
-        return chunks
-
     def keyword_search(self, query: str) -> List[RAGChunk]:
-        # Simple local fallback (optional)
-        return []
-
-
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(url, headers=headers, json={
-                "query_text": query,
-                "match_count": top_k
-            })
-
-            data = resp.json()
-
-        chunks = [
-            RAGChunk(
-                id=str(i["id"]),
-                text=i["content"],
-                score=float(i["similarity"]),
-                source=i.get("source", "unknown"),
-                metadata=i.get("metadata", {}),
-            )
-            for i in data
-        ]
-
-        return chunks
-
-    def keyword_search(self, query: str) -> List[RAGChunk]:
-        # Simple local fallback (optional)
+        # Placeholder keyword search for environments without Supabase
         return []
 
 
