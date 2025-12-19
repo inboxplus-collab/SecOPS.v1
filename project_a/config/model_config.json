@@ -1,0 +1,6 @@
+{
+  "model_name": "SecOPS Demo Model",
+  "version": "1.0.0",
+  "confidence_base": 0.65,
+  "special_tokens": ["[ALERT]", "[OK]"]
+}
