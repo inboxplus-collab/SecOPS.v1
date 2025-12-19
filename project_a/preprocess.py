@@ -1,4 +1,3 @@
-"""Image preprocessing helpers for Project A."""
 """Input preprocessing helpers for Project A."""
 
 from __future__ import annotations

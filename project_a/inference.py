@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-import os
+from pathlib import Path
 from typing import Any, Dict
 
 from .model import ProjectAModel
@@ -13,19 +13,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = PROJECT_ROOT / "config" / "model_config.json"
 import numpy as np
 
-from .model import SimpleImageModel
-from .model import SecurityInferenceModel
+from .model import ProjectAModel, SimpleImageModel
 
-PROJECT_ROOT = os.path.dirname(__file__)
-MODEL_CONFIG_PATH = os.path.join(PROJECT_ROOT, "config", "model_config.json")
-from .model import ProjectAModel
+PROJECT_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = PROJECT_ROOT / "config" / "model_config.json"
 
-PROJECT_ROOT = os.path.dirname(__file__)
-CONFIG_PATH = os.path.join(PROJECT_ROOT, "config", "model_config.json")
-from .model import ProjectAModel, predict
-
-_PROJECT_ROOT = Path(__file__).resolve().parent
-_CONFIG_PATH = _PROJECT_ROOT / "config" / "model_config.json"
 _model: SimpleImageModel | None = None
 
 PROJECT_ROOT = os.path.dirname(__file__)
@@ -42,17 +34,9 @@ def load_model_config() -> Dict[str, Any]:
     """Load the model configuration relative to this module."""
     with CONFIG_PATH.open("r", encoding="utf-8") as fp:
 
-    with open(MODEL_CONFIG_PATH, "r", encoding="utf-8") as fp:
-    if not os.path.exists(CONFIG_PATH):
+    if not CONFIG_PATH.exists():
         return {}
-
-    with open(CONFIG_PATH, "r", encoding="utf-8") as fp:
-        return json.load(fp)
-
-
-class ProjectAInference:
-    """Lightweight proxy that exposes Project A predictions."""
-    with _CONFIG_PATH.open("r", encoding="utf-8") as fp:
+    with CONFIG_PATH.open("r", encoding="utf-8") as fp:
         return json.load(fp)
 
 
@@ -81,14 +65,19 @@ class ProjectAModel:
         return self.model.predict(text)
 
 
+class ProjectAInference:
+    """Lightweight proxy that exposes Project A predictions."""
 def predict(text: str) -> Dict[str, Any]:
     """Public inference entrypoint for Project A."""
 
     return ProjectAModelWrapper().predict(text)
     """Module-level convenience wrapper."""
 
-    return ProjectAInference().predict(text)
+    def __init__(self) -> None:
+        self.model = _get_model()
 
+    def predict(self, image_array: np.ndarray) -> Dict[str, Any]:
+        return self.model.predict(image_array)
 
 __all__ = ["ProjectAInference", "ProjectAModel", "load_model_config", "predict"]
         cleaned = text.strip()
@@ -114,13 +103,11 @@ def predict(text: str) -> Dict[str, Any]:
 __all__ = ["ProjectAModelWrapper", "ProjectAModel", "predict", "load_model_config"]
 def predict(image_array: np.ndarray) -> Dict[str, Any]:
     """Proxy prediction through a lazily initialized model instance."""
-    model = _get_model()
-    return model.predict(image_array)
+
+    return ProjectAInference().predict(image_array)
 
 
-class ProjectAModel:
-    """Alias wrapper for compatibility with upstream imports."""
-
+__all__ = ["ProjectAInference", "ProjectAModel", "load_model_config", "predict"]
     def __init__(self) -> None:
         self._model = _get_model()
 

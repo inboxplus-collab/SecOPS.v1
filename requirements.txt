@@ -1,3 +1,4 @@
+# Consolidated dependencies for Project A (model) and Project B (FastAPI app)
 # Unified requirements for Project A (AI model) and Project B (FastAPI app).
 # GPU users should install the CUDA build of torch/torchvision that matches their runtime
 # (e.g., torch==2.3.1+cu121 torchvision==0.18.1+cu121 from https://download.pytorch.org/whl/cu121).
@@ -15,12 +16,6 @@
 # Unified requirements for Project A (vLLM-based model) and Project B (FastAPI app).
 # GPU users: install the matching CUDA build of torch/torchvision from
 # https://download.pytorch.org/whl/torch/ before installing the remaining packages.
-# Unified dependency set for Project A (AI model) and Project B (FastAPI app)
-# For GPU acceleration, install the CUDA variant of torch (e.g., torch==2.3.1+cu121)
-# from https://download.pytorch.org/whl/torch/ before installing the rest.
-# Consolidated dependency set for Project A (AI model) and Project B (FastAPI app).
-# GPU users should install a matching CUDA build of torch (e.g., torch==2.3.1+cu121)
-# from https://download.pytorch.org/whl/torch/ before installing the remaining packages.
 
 # Project B: FastAPI backend and orchestration
 fastapi==0.111.0
@@ -40,6 +35,7 @@ Authlib==1.3.1
 stripe==10.12.0
 kubernetes==29.0.0
 
+# Shared ML/LLM stack
 # Shared ML stack for both projects
 torch==2.3.1
 torchvision==0.18.1
@@ -76,58 +72,13 @@ pillow==10.4.0
 transformers==4.44.2
 datasets==2.21.0
 accelerate==0.33.0
-# Default to CPU PyTorch; swap for a CUDA build if available.
 torch==2.3.1
 
 # Optional: include torchvision when working with image inputs
 # torchvision==0.18.1
 torchvision==0.18.1
-
-# Project A model runtime
 vllm==0.5.4.post1
 
 # Tooling / tests
-pytest==8.2.0
-pytest-asyncio==0.23.5
-# Shared ML/LLM stack
-transformers==4.44.2
-datasets==2.21.0
-accelerate==0.33.0
-torch==2.3.1
-numpy==1.26.4
-Pillow==10.4.0
-
-# Project A serving and simulation extras
-vllm==0.5.4.post1
-
-pytest==8.2.0
-pytest-asyncio==0.23.5
-
-# Shared ML stack (aligned across both projects)
-torch==2.3.1
-
-# Shared ML stack used by both projects
-numpy==1.26.4
-pillow==10.4.0
-torch==2.3.1
-transformers==4.44.2
-datasets==2.21.0
-accelerate==0.33.0
-vllm==0.5.4.post1
-
-
-# LLM / model stack shared across projects
-transformers==4.44.2
-datasets==2.21.0
-accelerate==0.33.0
-vllm==0.5.4.post1
-
-torch==2.3.1
-numpy==1.26.4
-Pillow==10.4.0
-
-# Project A (AI model / serving)
-vllm==0.5.4.post1
-# Testing
 pytest==8.2.0
 pytest-asyncio==0.23.5
