@@ -1,0 +1,6 @@
+{
+  "model_name": "vllm-mock-secops",
+  "provider": "vLLM",
+  "routing_hint": "gpu-batch-serving",
+  "prompt_template": "SecOPS AI received: {text}"
+}

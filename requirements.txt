@@ -1,0 +1,4 @@
+# Unified requirements for Project B (SecOPS FastAPI app) and Project A (vLLM-based model)
+# Keeping transformers aligned across both stacks avoids dependency conflicts.
+-r backend/requirements.txt
+-r project_a/requirements.txt
