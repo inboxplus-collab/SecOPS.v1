@@ -1,17 +1,25 @@
+"""Image preprocessing helpers for Project A."""
+"""Input preprocessing helpers for Project A."""
+
+from __future__ import annotations
+
 import base64
 import io
 import json
-from pathlib import Path
+import os
 from typing import Tuple
 
 import numpy as np
 from PIL import Image
 
-BASE_DIR = Path(__file__).resolve().parent
-CONFIG_PATH = BASE_DIR / "config" / "model_config.json"
+BASE_DIR = os.path.dirname(__file__)
+CONFIG_PATH = os.path.join(BASE_DIR, "config", "model_config.json")
 
 
 def load_config() -> dict:
+    if not os.path.exists(CONFIG_PATH):
+        return {}
+
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -41,3 +49,10 @@ def preprocess_image(b64_string: str) -> np.ndarray:
     normalized = _normalize_image(array, normalization_mean, normalization_std)
     normalized = normalized.reshape((1, *normalized.shape))
     return normalized
+
+
+__all__ = [
+    "decode_base64_image",
+    "load_config",
+    "preprocess_image",
+]
