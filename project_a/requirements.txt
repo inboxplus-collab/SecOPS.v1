@@ -1,3 +1,5 @@
+# Project A (AI model) dependencies. These mirror the consolidated root requirements
+# so environments stay in sync between the model and the FastAPI app.
 # Project A (text inference demo) dependencies aligned with the unified root requirements.
 numpy==1.26.4
 Pillow==10.4.0
@@ -15,6 +17,8 @@ vllm==0.5.4.post1
 vllm==0.5.4.post1
 transformers==4.44.2
 torch==2.3.1
+transformers==4.44.2
+vllm==0.5.4.post1
 numpy==1.26.4
 Pillow==10.4.0
 pillow==10.4.0

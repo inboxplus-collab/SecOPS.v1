@@ -43,10 +43,13 @@ from typing import Any, Dict, Optional, Union
 from threading import Lock
 from typing import Any, Dict, Optional, Union
 
-# Dynamically expose Project A (./project_a) so its imports resolve without altering upstream code.
+# Minimal change path injection so Project A remains importable after being nested.
 PROJECT_A_PATH = Path(__file__).resolve().parent / "project_a"
 if str(PROJECT_A_PATH) not in sys.path:
     sys.path.insert(0, str(PROJECT_A_PATH))
+
+from project_a.inference import ProjectAModel  # noqa: E402
+
 # Ensure Project A remains importable after being nested under ./project_a
 PROJECT_A_PATH = os.path.join(os.path.dirname(__file__), "project_a")
 if PROJECT_A_PATH not in sys.path:
@@ -58,6 +61,12 @@ ProjectBPayload = Union[str, bytes, Dict[str, Any]]
 
 
 class ProjectABridge:
+    """Adapter that exposes Project A's inference to Project B.
+
+    The bridge keeps Project A importable without modifying its internal
+    modules, normalizes the payload shapes expected from Project B, and
+    ensures the underlying model is initialized only once to conserve
+    memory.
     """Adapter that translates Project B payloads into Project A inputs.
 
     - Injects ``./project_a`` on ``sys.path`` at runtime.
@@ -93,6 +102,7 @@ class AIBridge:
     _instance: Optional["AIBridge"] = None
     _lock: Lock = Lock()
 
+    def __new__(cls, *_: Any, **__: Any) -> "ProjectABridge":
     def __new__(cls) -> "AIBridge":
         if cls._instance is None:
             with cls._lock:
@@ -114,6 +124,9 @@ class AIBridge:
     def _get_model(self) -> ProjectAModel:
         if self._model is None:
             self._model = ProjectAModel()
+
+    def _normalize_payload(self, payload: ProjectBPayload) -> str:
+        """Convert Project B payloads (base64/plain/dict) into text."""
 
     def _normalize_payload(self, payload: ProjectBPayload) -> str:
         """Convert Project B payloads to the plain-text format Project A expects."""
@@ -154,6 +167,7 @@ class AIBridge:
                 return stripped_payload
 
         if isinstance(payload, dict):
+            # Common Project B patterns: {"data": "..."} or {"text": "..."}
             candidate = payload.get("data") or payload.get("text")
             if isinstance(candidate, bytes):
                 candidate = candidate.decode("utf-8")
@@ -167,6 +181,12 @@ class AIBridge:
         raise TypeError(f"Unsupported payload type: {type(payload)!r}")
 
     def execute(self, project_b_payload: ProjectBPayload) -> Dict[str, Any]:
+        text_input = self._normalize_payload(project_b_payload)
+        prediction = self._model.predict(text_input)
+        return {"status": "success", "data": prediction}
+
+
+__all__ = ["ProjectABridge", "ProjectBPayload"]
         """Run Project A inference and return a Project B-friendly response."""
 
         text_input = self._normalize_payload(project_b_payload)

@@ -1,4 +1,7 @@
 # Consolidated dependencies for Project A (model) and Project B (FastAPI app)
+# Unified requirements for Project A (AI model) and Project B (FastAPI app).
+# GPU users should install the CUDA build of torch/torchvision that matches their runtime
+# (e.g., torch==2.3.1+cu121 torchvision==0.18.1+cu121 from https://download.pytorch.org/whl/cu121).
 # Unified dependency set for Project A (AI model) and Project B (FastAPI app).
 # For GPU acceleration, install the CUDA-specific torch wheel (e.g., torch==2.3.1+cu121).
 # Consolidated requirements for Project A (AI model) and Project B (FastAPI app)
@@ -33,6 +36,19 @@ stripe==10.12.0
 kubernetes==29.0.0
 
 # Shared ML/LLM stack
+# Shared ML stack for both projects
+torch==2.3.1
+torchvision==0.18.1
+transformers==4.44.2
+datasets==2.21.0
+accelerate==0.33.0
+vllm==0.5.4.post1
+numpy==1.26.4
+Pillow==10.4.0
+
+# Testing
+pytest==8.2.0
+pytest-asyncio==0.23.5
 # Shared ML/tooling dependencies
 transformers==4.44.2
 datasets==2.21.0
