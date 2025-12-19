@@ -1,6 +1,20 @@
 from __future__ import annotations
 
 import json
+import os
+from typing import Any, Dict, List
+
+PROJECT_ROOT = os.path.dirname(__file__)
+MODEL_CONFIG_PATH = os.path.join(PROJECT_ROOT, "config", "model_config.json")
+LABEL_CONFIG_PATH = os.path.join(PROJECT_ROOT, "config", "config.json")
+WEIGHTS_PATH = os.path.join(PROJECT_ROOT, "weights", "dummy_weights.txt")
+
+
+def _load_json(path: str) -> Dict[str, Any]:
+    with open(path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+import json
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -49,6 +63,79 @@ class SecurityInferenceModel:
                         "reason": f"Matched keyword '{keyword}'",
                         "weights_checksum": self.weights_checksum,
                     }
+
+        return {"label": "benign", "reason": "No known threat indicators detected"}
+
+
+def predict(text: str) -> Dict[str, str]:
+    """Module-level helper mirroring the repository's exported API."""
+    model = SecurityInferenceModel()
+    return model.predict(text)
+
+
+from __future__ import annotations
+
+class ProjectATensorflowModel:
+    """TensorFlow-based image classifier using on-disk config and weights."""
+
+class ProjectAModel:
+    """Demo AI model that classifies text inputs.
+
+    The model keeps path resolution relative to this module so moving the
+    project under a different directory does not break config or weight loads.
+    """
+
+    def __init__(self) -> None:
+        self.model_config = _load_json(MODEL_CONFIG_PATH)
+        label_config = _load_json(LABEL_CONFIG_PATH)
+        self.labels: List[str] = label_config.get("labels", [])
+        self.keyword_map: Dict[str, List[str]] = label_config.get("keywords", {})
+        self.weights_checksum = self._load_weights_checksum()
+
+    def __init__(self) -> None:
+        self.base_dir = BASE_DIR
+        self.config_path = CONFIG_DIR / "model_config.json"
+        self.weights_path = self.base_dir / "artifacts" / "model.keras"
+        self.labels = self._load_labels()
+        self.model = self._load_model()
+
+    def _load_labels(self) -> List[str]:
+        if not self.config_path.exists():
+            return ["label"]
+
+        with self.config_path.open("r", encoding="utf-8") as f:
+            config = json.load(f)
+        return config.get("class_labels", ["label"])
+
+    def _build_fallback_model(self, input_shape: tuple) -> Any:
+        if tf is None:
+            raise RuntimeError("TensorFlow is required for the fallback model")
+
+        model = tf.keras.Sequential(
+            [
+                tf.keras.layers.InputLayer(input_shape=input_shape),
+                tf.keras.layers.Rescaling(1.0 / 255.0),
+                tf.keras.layers.Conv2D(8, 3, activation="relu"),
+                tf.keras.layers.GlobalAveragePooling2D(),
+                tf.keras.layers.Dense(len(self.labels), activation="softmax"),
+            ]
+        )
+        return model
+
+    def _load_model(self) -> Any:
+        input_shape = (224, 224, 3)
+        if self.weights_path.exists():
+            if tf is None:
+                raise RuntimeError("TensorFlow is required to load saved models")
+            return tf.keras.models.load_model(self.weights_path)
+
+        return self._build_fallback_model(input_shape)
+
+    def predict(self, processed_image: np.ndarray) -> Dict[str, Any]:
+        if tf is None:
+            raise RuntimeError("TensorFlow is required for TensorFlow model predictions")
+        predictions = self.model.predict(processed_image)
+        label_index = int(np.argmax(predictions, axis=1)[0])
         return {
             "label": "benign",
             "reason": "No keywords matched",
@@ -94,11 +181,36 @@ class ProjectAModel:
         with self.weights_path.open("r", encoding="utf-8") as weights_file:
             return sum(ord(char) for char in weights_file.read())
 
+    def _classify(self, normalized_text: str) -> str:
+        for label in ("critical", "suspicious"):
+            for keyword in self.keyword_map.get(label, []):
+                if keyword in normalized_text:
+                    return label
+        return "benign"
+
     def predict(self, text: str) -> Dict[str, Any]:
         cleaned = text.strip()
         base_prediction = self._keywords_model.predict(cleaned)
         prompt = self.config.get("prompt_template", "{text}").replace("{text}", cleaned)
         confidence = min(1.0, self.config.get("confidence_base", 0.5) + len(cleaned.split()) * 0.01)
+        normalized = text.strip().lower()
+        tokens = normalized.split()
+        label = self._classify(normalized)
+        prompt_template = self.model_config.get("prompt_template", "{text}")
+        prompt = prompt_template.replace("{text}", text.strip())
+        confidence = min(1.0, self.model_config.get("confidence_base", 0.5) + len(tokens) * 0.01)
+
+        return {
+            "model": self.model_config.get("model_name", "project_a"),
+            "version": self.model_config.get("version", "unknown"),
+            "weights_checksum": self.weights_checksum,
+            "label": label,
+            "token_count": len(tokens),
+            "prompt": prompt,
+            "confidence": round(confidence, 3),
+        tokens: List[str] = text.strip().split()
+        confidence_base = float(self.config.get("confidence_base", 0.5))
+        confidence = min(1.0, confidence_base + len(tokens) * 0.01)
         return {
             "model": self.config.get("model_name", "project_a"),
             "provider": self.config.get("provider", "unknown"),
@@ -107,6 +219,31 @@ class ProjectAModel:
             "confidence": round(confidence, 3),
             **base_prediction,
         }
+        return {"label": "benign", "reason": "No known threat indicators detected"}
+
+
+def predict(text: str) -> Dict[str, Any]:
+    model = ProjectAModel()
+    return model.predict(text)
+
+
+__all__ = ["ProjectAModel", "predict"]
+    """Convenience wrapper mirroring the repository's exported API."""
+def predict(text: str) -> Dict[str, str]:
+    """Module-level helper mirroring the repository's exported API."""
+
+    model = SecurityInferenceModel()
+    return model.predict(text)
+
+
+def load_model() -> ProjectAModel:
+    """Factory helper for compatibility with older imports."""
+
+    return ProjectAModel()
+
+
+__all__ = ["ProjectAModel", "predict", "load_model"]
+    return ProjectAModel().predict(text)
 
 
 __all__ = [
