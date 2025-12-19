@@ -1,4 +1,10 @@
 # Unified environment for Project A (AI model) and Project B (FastAPI app)
+# Consolidated requirements for Project A (TensorFlow model) and Project B (FastAPI app)
+# Combined dependency set for Project A (model) and Project B (app/framework).
+# GPU users should install the matching CUDA build of torch (e.g., +cu121) from
+# https://download.pytorch.org/whl/torch/ before installing the remaining packages.
+
+# Project B: FastAPI backend and orchestration
 fastapi==0.111.0
 uvicorn[standard]==0.30.1
 pydantic==2.7.1
@@ -23,3 +29,19 @@ pytest-asyncio==0.23.5
 numpy==1.26.4
 # Optional GPU-friendly runtime for Project A models. Install the matching CUDA build when needed:
 # torch==2.2.2  # CPU-only; for CUDA 12.1 use torch==2.2.2+cu121
+
+# Project A specific (TensorFlow-based) dependencies
+# TensorFlow 2.15.0 provides stable CPU builds; GPU users can switch to tensorflow-gpu==2.15.0
+tensorflow==2.15.0
+numpy>=1.26,<2
+pillow==10.4.0
+pytest==8.2.0
+pytest-asyncio==0.23.5
+
+# Project A: model and data handling
+# Torch pin keeps parity with transformers/accelerate without forcing a specific CUDA runtime.
+torch==2.3.1
+transformers==4.44.2
+datasets==2.21.0
+accelerate==0.33.0
+numpy==1.26.4

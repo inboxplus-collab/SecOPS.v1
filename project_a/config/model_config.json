@@ -1,0 +1,10 @@
+{
+  "input_size": [224, 224, 3],
+  "normalization_mean": [0.485, 0.456, 0.406],
+  "normalization_std": [0.229, 0.224, 0.225],
+  "class_labels": ["benign", "suspicious"]
+  "model_name": "SecOPS Demo Model",
+  "version": "1.0.0",
+  "confidence_base": 0.65,
+  "special_tokens": ["[ALERT]", "[OK]"]
+}
