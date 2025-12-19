@@ -1,7 +1,6 @@
-# Project A (vLLM-style model server) dependencies
-# Align transformer version with the backend to avoid resolver conflicts.
+# Project A (vLLM-style model server) dependencies aligned with Project B
 vllm==0.5.4.post1
 transformers==4.44.2
-# CUDA-enabled torch is expected for GPU inference; pin a stable CPU fallback for local tests.
 torch==2.3.1
 numpy==1.26.4
+Pillow==10.4.0
