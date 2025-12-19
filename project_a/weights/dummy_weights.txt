@@ -1,0 +1,2 @@
+# Placeholder weight file
+# In a real deployment this would contain binary tensors.
