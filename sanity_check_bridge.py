@@ -11,6 +11,12 @@ from bridge_logic import ProjectABridge
 
 
 def main() -> None:
+    bridge = ProjectABridge()
+    sample_payload = {"text": "This is a dummy Project B request"}
+    encoded_payload = base64.b64encode(sample_payload["text"].encode("utf-8")).decode("utf-8")
+
+    try:
+        response = bridge.execute(encoded_payload)
     """Quick sanity check for the Project A <-> Project B bridge."""
     try:
         bridge = ProjectABridge()

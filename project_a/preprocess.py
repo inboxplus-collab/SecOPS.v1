@@ -12,6 +12,13 @@ from typing import Tuple
 import numpy as np
 from PIL import Image
 
+PROJECT_ROOT = os.path.dirname(__file__)
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "config", "model_config.json")
+
+
+def load_config() -> dict:
+    with open(CONFIG_PATH, "r", encoding="utf-8") as config_file:
+        return json.load(config_file)
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "model_config.json")
 
@@ -24,7 +31,9 @@ def load_config() -> dict:
         return json.load(f)
 
 
-def _normalize_image(image_array: np.ndarray, mean: Tuple[float, float, float], std: Tuple[float, float, float]) -> np.ndarray:
+def _normalize_image(
+    image_array: np.ndarray, mean: Tuple[float, float, float], std: Tuple[float, float, float]
+) -> np.ndarray:
     mean_arr = np.array(mean, dtype=np.float32)
     std_arr = np.array(std, dtype=np.float32)
     normalized = (image_array / 255.0 - mean_arr) / std_arr
@@ -51,6 +60,7 @@ def preprocess_image(b64_string: str) -> np.ndarray:
     return normalized
 
 
+__all__ = ["preprocess_image", "decode_base64_image", "load_config"]
 __all__ = [
     "decode_base64_image",
     "load_config",

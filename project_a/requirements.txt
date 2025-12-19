@@ -1,3 +1,8 @@
+# Project A (text inference demo) dependencies aligned with the unified root requirements.
+numpy==1.26.4
+Pillow==10.4.0
+# torch is optional for heavier models; keep the version aligned with the root file if needed.
+# torch==2.3.1
 # Project A (model) dependencies aligned with the shared environment
 numpy==1.26.4
 Pillow==10.4.0

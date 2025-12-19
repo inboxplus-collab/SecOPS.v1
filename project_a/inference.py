@@ -6,6 +6,7 @@ import json
 import os
 from typing import Any, Dict
 
+from .model import ProjectAModel
 from .model import SecurityInferenceModel
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -26,6 +27,15 @@ from .model import ProjectAModel, predict
 _PROJECT_ROOT = Path(__file__).resolve().parent
 _CONFIG_PATH = _PROJECT_ROOT / "config" / "model_config.json"
 _model: SimpleImageModel | None = None
+
+PROJECT_ROOT = os.path.dirname(__file__)
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "config", "model_config.json")
+
+
+def load_model_config() -> Dict[str, Any]:
+    """Load the Project A model configuration relative to this package."""
+    with open(CONFIG_PATH, "r", encoding="utf-8") as config_file:
+        return json.load(config_file)
 
 
 def load_model_config() -> Dict[str, Any]:

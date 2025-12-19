@@ -31,6 +31,9 @@ from __future__ import annotations
 import base64
 import os
 import sys
+from threading import Lock
+from typing import Any, Dict, Optional, Union
+
 import threading
 from typing import Any, Dict, Optional, Union
 
@@ -93,6 +96,7 @@ class AIBridge:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
+                    cls._instance._model: Optional[ProjectAModel] = None
                     cls._instance._model = ProjectAModel()
         return cls._instance
 
@@ -107,6 +111,10 @@ class AIBridge:
     def _get_model(self) -> ProjectAModel:
         if self._model is None:
             self._model = ProjectAModel()
+
+    def _normalize_payload(self, payload: ProjectBPayload) -> str:
+        """Convert Project B payloads to the plain-text format Project A expects."""
+
         return self._model
 
     def _decode_payload(self, payload: ProjectBPayload) -> str:
@@ -137,6 +145,11 @@ class AIBridge:
             return payload
 
         if isinstance(payload, dict):
+            candidate = payload.get("data") or payload.get("text")
+            if isinstance(candidate, bytes):
+                candidate = candidate.decode("utf-8")
+            if isinstance(candidate, str):
+                return self._normalize_payload(candidate)
             candidate = payload.get("data") or payload.get("text") or payload.get("payload")
             if isinstance(candidate, (str, bytes)):
                 return self._transform_input(candidate)
@@ -145,6 +158,18 @@ class AIBridge:
         raise TypeError(f"Unsupported payload type: {type(payload)!r}")
 
     def execute(self, project_b_payload: ProjectBPayload) -> Dict[str, Any]:
+        """Run Project A inference and return a Project B-friendly response."""
+
+        text_input = self._normalize_payload(project_b_payload)
+        prediction = self._model.predict(text_input)
+        return {
+            "status": "success",
+            "input": text_input,
+            "data": prediction,
+        }
+
+
+__all__ = ["ProjectABridge", "ProjectBPayload"]
         text_input = self._transform_input(project_b_payload)
         result = self._get_model().predict(text_input)
         return {"status": "success", "input": text_input, "prediction": result}

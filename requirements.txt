@@ -1,3 +1,5 @@
+# Unified dependency set for Project A (AI model) and Project B (FastAPI app).
+# For GPU acceleration, install the CUDA-specific torch wheel (e.g., torch==2.3.1+cu121).
 # Consolidated requirements for Project A (AI model) and Project B (FastAPI app)
 # Install a CUDA-enabled build of torch/torchvision if GPU acceleration is desired:
 #   pip install torch==2.3.1+cu121 torchvision==0.18.1+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
@@ -35,6 +37,10 @@ Authlib==1.3.1
 stripe==10.12.0
 kubernetes==29.0.0
 
+# Shared ML/tooling dependencies
+transformers==4.44.2
+datasets==2.21.0
+accelerate==0.33.0
 # Shared AI/ML stack across both projects
 numpy==1.26.4
 Pillow==10.4.0
@@ -56,6 +62,9 @@ datasets==2.21.0
 accelerate==0.33.0
 # Default to CPU PyTorch; swap for a CUDA build if available.
 torch==2.3.1
+
+# Optional: include torchvision when working with image inputs
+# torchvision==0.18.1
 torchvision==0.18.1
 
 # Project A model runtime
