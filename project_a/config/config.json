@@ -1,0 +1,7 @@
+{
+  "labels": ["benign", "suspicious", "critical"],
+  "keywords": {
+    "critical": ["ransomware", "exfiltration", "privilege escalation", "credential dumping"],
+    "suspicious": ["scan", "bruteforce", "phishing", "anomaly"]
+  }
+}
