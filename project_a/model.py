@@ -1,3 +1,13 @@
+"""Project A model definitions with path-safe file resolution."""
+from __future__ import annotations
+
+import json
+import os
+from typing import Any, Dict, List
+
+PROJECT_ROOT = os.path.dirname(__file__)
+KEYWORD_CONFIG_PATH = os.path.join(PROJECT_ROOT, "config", "config.json")
+WEIGHTS_PATH = os.path.join(PROJECT_ROOT, "weights", "dummy_weights.txt")
 """Project A demo model with path-safe configuration loading."""
 """Project A model implementation with path-safe resource loading."""
 from __future__ import annotations
@@ -11,22 +21,39 @@ CONFIG_PATH = PROJECT_ROOT / "config" / "config.json"
 
 
 class SecurityInferenceModel:
-    """Lightweight heuristic model standing in for a heavier AI model.
+    """Keyword-driven classifier used to emulate a heavier AI model."""
 
-    The model configuration is loaded from a JSON file relative to this module so
-    relocating the project under a new directory continues to work.
-    """
+    def __init__(self, config_path: str | None = None, weights_path: str | None = None) -> None:
+        self.config_path = config_path or KEYWORD_CONFIG_PATH
+        self.weights_path = weights_path or WEIGHTS_PATH
+        self.labels, self.keywords = self._load_keywords()
+        self.weights_checksum = self._load_weights_checksum()
 
+    def _load_keywords(self) -> tuple[List[str], Dict[str, List[str]]]:
+        with open(self.config_path, "r", encoding="utf-8") as config_file:
     def __init__(self) -> None:
         with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
             config = json.load(config_file)
+        labels: List[str] = config.get("labels", [])
+        keywords: Dict[str, List[str]] = config.get("keywords", {})
+        return labels, keywords
 
-        self.labels: List[str] = config.get("labels", [])
-        self.keywords: Dict[str, List[str]] = config.get("keywords", {})
+    def _load_weights_checksum(self) -> int:
+        with open(self.weights_path, "r", encoding="utf-8") as weights_file:
+            return sum(ord(char) for char in weights_file.read())
 
-    def predict(self, text: str) -> Dict[str, str]:
-        """Return a simple classification and reason string for the input text."""
+    def predict(self, text: str) -> Dict[str, Any]:
+        """Return a label and metadata for the supplied text."""
+
         normalized = text.lower()
+        for label in ("critical", "suspicious"):
+            for keyword in self.keywords.get(label, []):
+                if keyword in normalized:
+                    return {
+                        "label": label,
+                        "reason": f"Matched keyword '{keyword}'",
+                        "weights_checksum": self.weights_checksum,
+                    }
 
 from __future__ import annotations
 
@@ -98,16 +125,15 @@ class ProjectAModel:
         confidence_base = float(self.config.get("confidence_base", 0.5))
         confidence = min(1.0, confidence_base + len(tokens) * 0.01)
         return {
-            "model": self.config.get("model_name", "project_a"),
-            "version": self.config.get("version", "unknown"),
+            "label": "benign",
+            "reason": "No known threat indicators detected",
             "weights_checksum": self.weights_checksum,
-            "tokens": tokens,
-            "token_count": len(tokens),
-            "confidence": round(confidence, 3),
         }
         return {"label": "benign", "reason": "No known threat indicators detected"}
 
 
+def predict(text: str) -> Dict[str, Any]:
+    """Convenience wrapper mirroring the repository's exported API."""
 def predict(text: str) -> Dict[str, str]:
     """Module-level helper mirroring the repository's exported API."""
 

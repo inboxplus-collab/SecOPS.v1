@@ -1,3 +1,5 @@
+# Unified dependency set for Project A (AI model) and Project B (FastAPI app)
+# GPU users should install the matching CUDA build of torch/torchvision from
 # Unified requirements for Project A (vLLM-based model) and Project B (FastAPI app).
 # GPU users: install the matching CUDA build of torch/torchvision from
 # https://download.pytorch.org/whl/torch/ before installing the remaining packages.
@@ -25,6 +27,18 @@ python-jose[cryptography]==3.3.0
 Authlib==1.3.1
 stripe==10.12.0
 kubernetes==29.0.0
+
+# Shared ML/LLM stack
+transformers==4.44.2
+datasets==2.21.0
+accelerate==0.33.0
+torch==2.3.1
+numpy==1.26.4
+Pillow==10.4.0
+
+# Project A serving and simulation extras
+vllm==0.5.4.post1
+
 pytest==8.2.0
 pytest-asyncio==0.23.5
 

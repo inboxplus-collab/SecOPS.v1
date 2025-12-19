@@ -1,3 +1,4 @@
+# Project A (AI model) dependencies aligned with the unified environment
 # Project A (vLLM-style model server) dependencies aligned with Project B
 # Project A dependencies (aligned with root requirements)
 vllm==0.5.4.post1
