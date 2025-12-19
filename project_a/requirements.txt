@@ -3,3 +3,20 @@ numpy==1.26.4
 Pillow==10.4.0
 # torch is optional for heavier models; keep the version aligned with the root file if needed.
 # torch==2.3.1
+# Project A (model) dependencies aligned with the shared environment
+numpy==1.26.4
+Pillow==10.4.0
+torch==2.3.1
+transformers==4.44.2
+vllm==0.5.4.post1
+# Project A (AI model) dependencies aligned with the unified environment
+# Project A (vLLM-style model server) dependencies aligned with Project B
+# Project A dependencies (aligned with root requirements)
+vllm==0.5.4.post1
+transformers==4.44.2
+torch==2.3.1
+numpy==1.26.4
+Pillow==10.4.0
+pillow==10.4.0
+accelerate==0.33.0
+datasets==2.21.0
