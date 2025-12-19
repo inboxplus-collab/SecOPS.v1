@@ -1,17 +1,21 @@
-"""Project A: Local model stub used for bridge integration tests."""
-
-from project_a.inference import ProjectAModel, load_model_config  # noqa: F401
-"""Project A minimal inference package."""
-"""
-Project A package exposing model loading and inference utilities.
-"""
-
-from .model import ProjectAModel, load_model
-from .preprocess import preprocess_image
-
-__all__ = ["ProjectAModel", "load_model", "preprocess_image"]
 """Project A package exposing the demo AI model."""
 
-from .model import ProjectAModel, predict
+from __future__ import annotations
 
-__all__ = ["ProjectAModel", "predict"]
+from .inference import ProjectAModelWrapper, load_model_config, predict as inference_predict
+from .model import ProjectAModel, SecurityInferenceModel, predict
+
+try:  # Optional dependency: only present when image preprocessing is needed
+    from .preprocess import preprocess_image
+except ModuleNotFoundError:  # pragma: no cover - optional at runtime
+    preprocess_image = None
+
+__all__ = [
+    "ProjectAModel",
+    "ProjectAModelWrapper",
+    "SecurityInferenceModel",
+    "predict",
+    "inference_predict",
+    "load_model_config",
+    "preprocess_image",
+]
