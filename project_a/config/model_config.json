@@ -1,4 +1,8 @@
 {
+  "model_name": "vllm-mock-secops",
+  "provider": "vLLM",
+  "routing_hint": "gpu-batch-serving",
+  "prompt_template": "SecOPS AI received: {text}"
   "input_size": [224, 224, 3],
   "normalization_mean": [0.485, 0.456, 0.406],
   "normalization_std": [0.229, 0.224, 0.225],

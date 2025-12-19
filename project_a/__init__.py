@@ -1,3 +1,6 @@
+"""Project A: Local model stub used for bridge integration tests."""
+
+from project_a.inference import ProjectAModel, load_model_config  # noqa: F401
 """Project A minimal inference package."""
 """
 Project A package exposing model loading and inference utilities.

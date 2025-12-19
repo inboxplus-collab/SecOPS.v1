@@ -1,3 +1,7 @@
+# Unified requirements for Project B (SecOPS FastAPI app) and Project A (vLLM-based model)
+# Keeping transformers aligned across both stacks avoids dependency conflicts.
+-r backend/requirements.txt
+-r project_a/requirements.txt
 # Unified environment for Project A (AI model) and Project B (FastAPI app)
 # Consolidated requirements for Project A (TensorFlow model) and Project B (FastAPI app)
 # Combined dependency set for Project A (model) and Project B (app/framework).
